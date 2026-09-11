@@ -17,15 +17,18 @@ export function Navbar({ userEmail, onExportExcel }: NavbarProps) {
   const hasCloud = isSupabaseConfigured();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    // 1. Immediately purge session credentials
     localStorage.removeItem('philhealth_encoder');
     localStorage.removeItem('philhealth_user_email');
+
+    // 2. Background non-blocking cloud sign-out
     if (hasCloud) {
-      try {
-        await supabase.auth.signOut();
-      } catch (e) {}
+      supabase.auth.signOut().catch(() => {});
     }
-    router.push('/login');
+
+    // 3. Instant hard navigation to /login (0ms latency)
+    window.location.href = '/login';
   };
 
   return (

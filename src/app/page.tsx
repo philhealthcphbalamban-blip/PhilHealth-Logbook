@@ -102,29 +102,7 @@ export default function Dashboard() {
   };
 
   const loadSavedRecords = async (dateKey: string) => {
-    if (isSupabaseConfigured()) {
-      try {
-        const { data } = await supabase
-          .from('records')
-          .select('*')
-          .eq('date_key', dateKey);
-
-        if (data && data.length > 0) {
-          setRecords(data.map(r => ({
-            id: r.id,
-            category: r.category,
-            patientName: r.patient_name,
-            phicCat: r.phic_cat,
-            icd: r.icd_code,
-            amount: r.amount,
-            hci: r.hci_amount,
-            pf: r.pf_amount
-          })));
-          return;
-        }
-      } catch (e) {}
-    }
-
+    // 1. Instant local-first rendering (0ms delay)
     const localData = localStorage.getItem(`philhealth_recs_${dateKey}`);
     if (localData) {
       try {
@@ -134,6 +112,31 @@ export default function Dashboard() {
       }
     } else {
       setRecords([]);
+    }
+
+    // 2. Non-blocking cloud sync in background
+    if (isSupabaseConfigured()) {
+      try {
+        const { data } = await supabase
+          .from('records')
+          .select('*')
+          .eq('date_key', dateKey);
+
+        if (data && data.length > 0) {
+          const cloudRecords = data.map(r => ({
+            id: r.id,
+            category: r.category,
+            patientName: r.patient_name,
+            phicCat: r.phic_cat,
+            icd: r.icd_code,
+            amount: r.amount,
+            hci: r.hci_amount,
+            pf: r.pf_amount
+          }));
+          setRecords(cloudRecords);
+          localStorage.setItem(`philhealth_recs_${dateKey}`, JSON.stringify(cloudRecords));
+        }
+      } catch (e) {}
     }
   };
 
