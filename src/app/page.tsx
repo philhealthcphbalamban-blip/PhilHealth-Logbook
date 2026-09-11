@@ -245,7 +245,7 @@ export default function Dashboard() {
       
       <Navbar userEmail={userEmail} onExportExcel={exportExcel} />
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 md:pt-6 space-y-4 md:space-y-6">
+      <main className="max-w-[98%] mx-auto px-2 sm:px-4 lg:px-6 pt-4 md:pt-6 space-y-4 md:space-y-6">
 
         {/* Current & Past Worksheet Header */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

@@ -57,32 +57,34 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between p-4 sm:p-6 bg-slate-50 dark:bg-slate-950 transition-colors">
+    <div className="min-h-screen flex flex-col justify-between p-4 sm:p-8 bg-slate-50 dark:bg-slate-950 transition-colors">
       
-      <div className="flex justify-between items-center max-w-5xl mx-auto w-full">
-        <Link href="/" className="flex items-center gap-2 text-emerald-600 font-bold text-lg">
-          <BookOpen className="w-5 h-5" />
+      {/* Top Header */}
+      <div className="flex justify-between items-center w-full max-w-7xl mx-auto px-2">
+        <Link href="/" className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-lg">
+          <BookOpen className="w-6 h-6" />
           <span>PhilHealth Logbook</span>
         </Link>
         <ThemeToggle />
       </div>
 
-      <div className="max-w-md w-full mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+      {/* Main Login Card - Adjusted Width & Spacing */}
+      <div className="max-w-md w-full mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-6 my-auto">
         
         <div className="text-center space-y-2">
-          <div className="inline-flex p-3 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-2xl mb-1">
-            <ShieldCheck className="w-8 h-8" />
+          <div className="inline-flex p-3.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-2xl mb-1">
+            <ShieldCheck className="w-9 h-9" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             {isSignUp ? 'Create Encoder Account' : 'Encoder Portal Login'}
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
             PhilHealth Endorsement Data Entry & Daily Logbook
           </p>
         </div>
 
         {errorMsg && (
-          <div className="p-3 bg-rose-100 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs font-medium">
+          <div className="p-3.5 bg-rose-100 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-2xl text-xs font-semibold">
             {errorMsg}
           </div>
         )}
@@ -91,53 +93,53 @@ export default function LoginPage() {
           
           {isSignUp && (
             <div>
-              <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
                 Encoder / Employee Name
               </label>
               <div className="relative">
-                <User className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+                <User className="w-5 h-5 absolute left-3.5 top-3 text-slate-400" />
                 <input
                   type="text"
                   required
                   value={encoderName}
                   onChange={(e) => setEncoderName(e.target.value)}
                   placeholder="e.g. Juvy, Miko"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-emerald-500"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:border-emerald-500 text-slate-900 dark:text-white"
                 />
               </div>
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
               Email Address
             </label>
             <div className="relative">
-              <User className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              <User className="w-5 h-5 absolute left-3.5 top-3 text-slate-400" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="encoder@hospital.com"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-emerald-500"
+                className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:border-emerald-500 text-slate-900 dark:text-white"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
               Password
             </label>
             <div className="relative">
-              <Lock className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              <Lock className="w-5 h-5 absolute left-3.5 top-3 text-slate-400" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-emerald-500"
+                className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:border-emerald-500 text-slate-900 dark:text-white"
               />
             </div>
           </div>
@@ -145,14 +147,14 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 transition flex items-center justify-center gap-2 text-sm"
+            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-900/20 transition flex items-center justify-center gap-2 text-sm md:text-base mt-2"
           >
             {loading ? 'Processing...' : isSignUp ? 'Sign Up' : 'Sign In'}
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-5 h-5" />
           </button>
         </form>
 
-        <div className="text-center text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
+        <div className="text-center text-xs sm:text-sm text-slate-500 dark:text-slate-400 pt-3 border-t border-slate-100 dark:border-slate-800">
           {isSignUp ? (
             <span>
               Already have an account?{' '}
@@ -180,7 +182,8 @@ export default function LoginPage() {
 
       </div>
 
-      <footer className="text-center text-xs text-slate-400 py-2">
+      {/* Footer */}
+      <footer className="text-center text-xs text-slate-400 py-3">
         PhilHealth Logbook Pro • Hospital Endorsement Management
       </footer>
 
