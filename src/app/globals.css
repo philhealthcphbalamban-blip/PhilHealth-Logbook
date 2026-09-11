@@ -67,3 +67,69 @@ html {
   transform: translateY(-6px) scale(1.008);
   box-shadow: 0 20px 35px -10px rgba(16, 185, 129, 0.18);
 }
+
+/* Dynamic Accent Theme Studio CSS Variables */
+:root {
+  --theme-primary: #059669;
+  --theme-primary-hover: #10b981;
+  --theme-primary-light: #dcfce7;
+  --theme-primary-dark-bg: #064e3b;
+  --theme-primary-text: #047857;
+}
+
+html[data-color-theme="blue"] {
+  --theme-primary: #2563eb;
+  --theme-primary-hover: #3b82f6;
+  --theme-primary-light: #dbeafe;
+  --theme-primary-dark-bg: #1e3a8a;
+  --theme-primary-text: #1d4ed8;
+}
+
+html[data-color-theme="purple"] {
+  --theme-primary: #7c3aed;
+  --theme-primary-hover: #8b5cf6;
+  --theme-primary-light: #f3e8ff;
+  --theme-primary-dark-bg: #4c1d95;
+  --theme-primary-text: #6d28d9;
+}
+
+html[data-color-theme="rose"] {
+  --theme-primary: #e11d48;
+  --theme-primary-hover: #f43f5e;
+  --theme-primary-light: #ffe4e6;
+  --theme-primary-dark-bg: #881337;
+  --theme-primary-text: #be123c;
+}
+
+/* Dynamic Tailwind Helper Overrides for Live Accent Switch */
+.bg-emerald-600 {
+  background-color: var(--theme-primary) !important;
+}
+
+.hover\:bg-emerald-500:hover {
+  background-color: var(--theme-primary-hover) !important;
+}
+
+.text-emerald-600 {
+  color: var(--theme-primary) !important;
+}
+
+.text-emerald-500 {
+  color: var(--theme-primary) !important;
+}
+
+.dark .text-emerald-400 {
+  color: var(--theme-primary-hover) !important;
+}
+
+.bg-emerald-100 {
+  background-color: var(--theme-primary-light) !important;
+}
+
+.border-emerald-500 {
+  border-color: var(--theme-primary) !important;
+}
+
+.focus\:border-emerald-500:focus {
+  border-color: var(--theme-primary) !important;
+}
