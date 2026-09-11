@@ -295,19 +295,24 @@ export default function Dashboard() {
     : records.filter(r => r.category === activeFilter);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-12 transition-colors">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-12 transition-colors relative overflow-hidden">
       
+      {/* Background Ambient Parallax Floating Glow Orbs */}
+      <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-500/10 dark:bg-emerald-500/5 rounded-full blur-3xl pointer-events-none animate-float"></div>
+      <div className="absolute top-1/3 -right-32 w-96 h-96 bg-purple-500/10 dark:bg-purple-500/5 rounded-full blur-3xl pointer-events-none animate-float-reverse"></div>
+      <div className="absolute bottom-10 left-1/4 w-80 h-80 bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-3xl pointer-events-none animate-glow"></div>
+
       <Navbar userEmail={userEmail} onExportExcel={exportExcel} />
 
-      <main className="max-w-[98%] mx-auto px-2 sm:px-4 lg:px-6 pt-4 md:pt-6 space-y-4 md:space-y-6">
+      <main className="max-w-[98%] mx-auto px-2 sm:px-4 lg:px-6 pt-4 md:pt-6 space-y-4 md:space-y-6 relative z-10">
 
-        {/* Current & Past Worksheet Header */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        {/* Current & Past Worksheet Header with Parallax Glassmorphic Card */}
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 parallax-card">
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 md:p-3 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 rounded-xl md:rounded-2xl">
-                <Calendar className="w-5 h-5 md:w-6 md:h-6" />
+              <div className="p-2.5 md:p-3 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 rounded-xl md:rounded-2xl shadow-sm">
+                <Calendar className="w-5 h-5 md:w-6 md:h-6 animate-pulse" />
               </div>
               <div>
                 <span className="text-[10px] md:text-xs uppercase font-bold tracking-wider text-slate-400 block">Worksheet Date</span>
@@ -327,12 +332,12 @@ export default function Dashboard() {
                 type="date"
                 value={selectedIsoDate}
                 onChange={(e) => handleDatePickerChange(e.target.value)}
-                className="w-full sm:w-auto bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                className="w-full sm:w-auto bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer shadow-inner"
               />
               <button
                 type="button"
                 onClick={() => handleDatePickerChange(new Date().toISOString().split('T')[0])}
-                className="px-2.5 py-1.5 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 rounded-xl text-xs font-bold transition whitespace-nowrap"
+                className="px-2.5 py-1.5 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 rounded-xl text-xs font-bold transition whitespace-nowrap shadow-xs"
                 title="Jump to Today"
               >
                 Today
@@ -342,7 +347,7 @@ export default function Dashboard() {
 
           {/* Encoder Name Info */}
           <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
-            <div className="bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+            <div className="bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs shadow-xs">
               <span className="text-slate-400 uppercase font-bold text-[10px] block">Encoder</span>
               <input
                 type="text"
@@ -362,27 +367,27 @@ export default function Dashboard() {
 
         </div>
 
-        {/* Mobile & Desktop Stat Cards */}
+        {/* Mobile & Desktop Parallax Stat Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 gap-3 md:gap-4">
           
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 md:p-5 shadow-sm flex items-center justify-between">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl p-4 md:p-5 shadow-sm flex items-center justify-between parallax-card">
             <div>
               <p className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-slate-400">Total Patients</p>
               <h3 className="text-2xl md:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">{records.length}</h3>
             </div>
-            <div className="p-2.5 md:p-3 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 rounded-xl md:rounded-2xl">
+            <div className="p-2.5 md:p-3 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 rounded-xl md:rounded-2xl shadow-sm">
               <Users className="w-5 h-5 md:w-6 md:h-6" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 md:p-5 shadow-sm flex items-center justify-between">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl p-4 md:p-5 shadow-sm flex items-center justify-between parallax-card">
             <div>
               <p className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-slate-400">Active Categories</p>
               <h3 className="text-2xl md:text-3xl font-extrabold text-purple-600 dark:text-purple-400 mt-1">
                 {new Set(records.map(r => r.category)).size}
               </h3>
             </div>
-            <div className="p-2.5 md:p-3 bg-purple-50 dark:bg-purple-950/50 text-purple-600 rounded-xl md:rounded-2xl">
+            <div className="p-2.5 md:p-3 bg-purple-50 dark:bg-purple-950/50 text-purple-600 rounded-xl md:rounded-2xl shadow-sm">
               <Sparkles className="w-5 h-5 md:w-6 md:h-6" />
             </div>
           </div>
