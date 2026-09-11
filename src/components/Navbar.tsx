@@ -16,11 +16,20 @@ export function Navbar({ userEmail, onExportExcel }: NavbarProps) {
   const router = useRouter();
   const hasCloud = isSupabaseConfigured();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  React.useEffect(() => {
+    const encoder = localStorage.getItem('philhealth_encoder') || '';
+    const role = localStorage.getItem('philhealth_user_role') || '';
+    const isAdm = role === 'ADMIN' || encoder.toLowerCase().includes('admin');
+    setIsAdmin(isAdm);
+  }, []);
 
   const handleLogout = () => {
     // 1. Immediately purge session credentials
     localStorage.removeItem('philhealth_encoder');
     localStorage.removeItem('philhealth_user_email');
+    localStorage.removeItem('philhealth_user_role');
 
     // 2. Background non-blocking cloud sign-out
     if (hasCloud) {
@@ -73,13 +82,16 @@ export function Navbar({ userEmail, onExportExcel }: NavbarProps) {
 
           <ThemeToggle />
 
-          <Link
-            href="/admin"
-            className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold transition border border-slate-200 dark:border-slate-700"
-          >
-            <ShieldAlert className="w-4 h-4 text-emerald-500" />
-            <span>Admin Settings</span>
-          </Link>
+          {/* Admin Access Restriction: Render Admin Settings ONLY for Admin users */}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold transition border border-slate-200 dark:border-slate-700"
+            >
+              <ShieldAlert className="w-4 h-4 text-emerald-500" />
+              <span>Admin Settings</span>
+            </Link>
+          )}
 
           {onExportExcel && (
             <button
@@ -118,14 +130,16 @@ export function Navbar({ userEmail, onExportExcel }: NavbarProps) {
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3 shadow-lg">
-          <Link
-            href="/admin"
-            onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-2 w-full p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
-          >
-            <ShieldAlert className="w-4 h-4 text-emerald-500" />
-            <span>Admin Settings</span>
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/admin"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2 w-full p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
+            >
+              <ShieldAlert className="w-4 h-4 text-emerald-500" />
+              <span>Admin Settings</span>
+            </Link>
+          )}
 
           {onExportExcel && (
             <button

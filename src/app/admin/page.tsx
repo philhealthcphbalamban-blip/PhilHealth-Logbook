@@ -22,9 +22,23 @@ export default function AdminPage() {
   const [role, setRole] = useState<'ADMIN' | 'ENCODER'>('ENCODER');
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState('');
 
   useEffect(() => {
+    const encoder = localStorage.getItem('philhealth_encoder') || '';
+    const userRole = localStorage.getItem('philhealth_user_role') || '';
+    const isAdm = userRole === 'ADMIN' || encoder.toLowerCase().includes('admin');
+
+    if (!isAdm) {
+      setIsAdmin(false);
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
+      return;
+    }
+
+    setIsAdmin(true);
     const savedEmail = localStorage.getItem('philhealth_user_email') || 'admin@hospital.com';
     setCurrentUserEmail(savedEmail);
     loadUsers();
@@ -101,6 +115,31 @@ export default function AdminPage() {
       localStorage.setItem('philhealth_accounts', JSON.stringify(updated));
     }
   };
+
+  if (isAdmin === false) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 text-center space-y-4 shadow-2xl">
+          <div className="inline-flex p-4 bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 rounded-2xl">
+            <ShieldAlert className="w-10 h-10" />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+            Access Restricted
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+            Admin settings are strictly restricted to System Admin accounts only.
+          </p>
+          <div className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-semibold">
+            Redirecting to logbook dashboard...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAdmin === null) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-12 transition-colors">

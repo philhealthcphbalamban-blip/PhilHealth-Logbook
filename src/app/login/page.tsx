@@ -19,10 +19,12 @@ export default function LoginPage() {
 
     const activeUser = username.trim() || 'Encoder';
     const generatedEmail = activeUser.toLowerCase().replace(/[^a-z0-9]/g, '') + '@hospital.com';
+    const isAdmin = activeUser.toLowerCase().includes('admin');
 
     // 1. Instant local session storage set
     localStorage.setItem('philhealth_encoder', activeUser);
     localStorage.setItem('philhealth_user_email', generatedEmail);
+    localStorage.setItem('philhealth_user_role', isAdmin ? 'ADMIN' : 'ENCODER');
 
     // 2. Instant direct hard redirect (0ms latency, zero delay)
     window.location.href = '/';
