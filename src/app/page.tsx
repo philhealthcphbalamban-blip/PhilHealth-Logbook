@@ -635,18 +635,11 @@ export default function Dashboard() {
                 </label>
                 <input
                   type="text"
-                  list="icdList"
                   value={icd}
                   onChange={(e) => setIcd(e.target.value)}
-                  placeholder="e.g. 59513, NSD01, A09.9"
+                  placeholder="e.g. 59513, NSD01, A09.9, or any new ICD10 code"
                   className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 md:py-2.5 text-xs md:text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                 />
-                {/* Clean ICD Datalist without peso signs */}
-                <datalist id="icdList">
-                  {Object.keys(REF_ICD_MAP).map(code => (
-                    <option key={code} value={code}>{code}</option>
-                  ))}
-                </datalist>
               </div>
 
               <button
