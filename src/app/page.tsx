@@ -35,6 +35,7 @@ export default function Dashboard() {
   const [currentDate, setCurrentDate] = useState('');
   const [pastDates, setPastDates] = useState<string[]>([]);
   const [encoder, setEncoder] = useState('Juvy');
+  const [userRole, setUserRole] = useState('ENCODER');
   const [userEmail, setUserEmail] = useState('');
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [activeFilter, setActiveFilter] = useState('ALL');
@@ -57,12 +58,16 @@ export default function Dashboard() {
 
     const savedEncoder = localStorage.getItem('philhealth_encoder') || 'Juvy';
     const savedEmail = localStorage.getItem('philhealth_user_email') || '';
+    const savedRole = localStorage.getItem('philhealth_user_role') || 'ENCODER';
     setEncoder(savedEncoder);
     setUserEmail(savedEmail);
+    setUserRole(savedRole);
 
     fetchPastWorksheets();
     loadSavedRecords(todayStr);
   }, []);
+
+  const isAdmin = userRole === 'ADMIN' || encoder.toLowerCase().includes('admin');
 
   const handleDatePickerChange = (isoVal: string) => {
     if (!isoVal) return;
@@ -224,6 +229,11 @@ export default function Dashboard() {
   };
 
   const handleDeleteRecord = async (id: string) => {
+    if (!isAdmin) {
+      alert('⚠️ Access Denied: Only ADMIN users have permission to delete patient records.');
+      return;
+    }
+
     const updated = records.filter(r => r.id !== id);
     setRecords(updated);
 
@@ -553,13 +563,23 @@ export default function Dashboard() {
                             </span>
                           </td>
                           <td className="p-3 md:p-3.5 text-right">
-                            <button
-                              onClick={() => handleDeleteRecord(r.id)}
-                              className="p-1.5 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-lg transition"
-                              title="Delete row"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {isAdmin ? (
+                              <button
+                                onClick={() => handleDeleteRecord(r.id)}
+                                className="p-1.5 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-lg transition"
+                                title="Delete patient entry (Admin Only)"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            ) : (
+                              <button
+                                disabled
+                                className="p-1.5 text-slate-300 dark:text-slate-700 cursor-not-allowed rounded-lg"
+                                title="Only ADMIN users can delete patient entries"
+                              >
+                                <Trash2 className="w-4 h-4 opacity-40" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))
