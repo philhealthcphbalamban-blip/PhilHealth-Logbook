@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ThemeToggle } from './ThemeToggle';
-import { BookOpen, LogOut, User, Download, CloudCheck, HardDrive } from 'lucide-react';
+import { BookOpen, LogOut, User, Download, CloudCheck, HardDrive, ShieldAlert } from 'lucide-react';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
 interface NavbarProps {
@@ -54,6 +54,15 @@ export function Navbar({ userEmail, onExportExcel, onLogout }: NavbarProps) {
           </div>
 
           <ThemeToggle />
+
+          <Link
+            href="/admin"
+            className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition"
+            title="Admin & Account Management"
+          >
+            <ShieldAlert className="w-4 h-4 text-emerald-500" />
+            <span className="hidden sm:inline">Admin</span>
+          </Link>
 
           {onExportExcel && (
             <button
