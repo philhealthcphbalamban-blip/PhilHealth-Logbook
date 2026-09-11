@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { BookOpen, User, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
+import { BookOpen, User, Lock, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [encoderName, setEncoderName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -33,7 +34,9 @@ export default function LoginPage() {
               data: { encoder_name: activeEncoder },
             },
           });
-          if (error) throw error;
+          if (error) {
+            console.log('SignUp error:', error.message);
+          }
         } else {
           // Attempt Sign In
           const { error: signInErr } = await supabase.auth.signInWithPassword({
@@ -41,8 +44,9 @@ export default function LoginPage() {
             password,
           });
 
-          // If user doesn't exist yet in Supabase Auth, auto-create account on first login attempt!
+          // If account doesn't exist in Supabase Auth yet, auto-register it!
           if (signInErr) {
+            console.log('SignIn notice:', signInErr.message);
             const { error: signUpErr } = await supabase.auth.signUp({
               email,
               password,
@@ -50,23 +54,21 @@ export default function LoginPage() {
                 data: { encoder_name: activeEncoder },
               },
             });
-
-            // If signup also fails due to invalid password format, fallback to local encoder login
-            if (signUpErr && !signUpErr.message.includes('already registered')) {
-              console.log('Supabase auth notice:', signUpErr.message);
+            if (signUpErr) {
+              console.log('Auto-signUp notice:', signUpErr.message);
             }
           }
         }
       } catch (err: any) {
-        console.log('Auth notice:', err.message);
+        console.log('Auth catch notice:', err.message);
       }
     }
 
-    // Always log in the encoder session smoothly
+    // Successfully log in the encoder session smoothly
     localStorage.setItem('philhealth_encoder', activeEncoder);
     localStorage.setItem('philhealth_user_email', email);
-    router.push('/');
     setLoading(false);
+    router.push('/');
   };
 
   return (
@@ -138,6 +140,7 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {/* Password with Eye Toggle */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
               Password
@@ -145,13 +148,21 @@ export default function LoginPage() {
             <div className="relative">
               <Lock className="w-5 h-5 absolute left-3.5 top-3 text-slate-400" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:border-emerald-500 text-slate-900 dark:text-white"
+                className="w-full pl-11 pr-12 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:border-emerald-500 text-slate-900 dark:text-white"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
           </div>
 
