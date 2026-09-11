@@ -147,7 +147,17 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-12 transition-colors">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-12 transition-colors relative overflow-hidden">
+      
+      {/* Background Hospital Logo Watermark Wrap */}
+      <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden select-none">
+        <img
+          src="/hospital-logo.png"
+          alt="Cebu Provincial Hospital Balamban Watermark"
+          className="w-[550px] sm:w-[700px] md:w-[850px] max-w-[90vw] opacity-[0.05] dark:opacity-[0.07] filter contrast-125 saturate-150 blur-[0.5px] scale-105 pointer-events-none"
+        />
+      </div>
+
       <Navbar userEmail={currentUserEmail} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">

@@ -98,29 +98,50 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between p-4 sm:p-8 bg-slate-50 dark:bg-slate-950 transition-colors">
+    <div className="min-h-screen flex flex-col justify-between p-4 sm:p-8 bg-slate-50 dark:bg-slate-950 transition-colors relative overflow-hidden">
       
+      {/* Background Hospital Logo Watermark Wrap */}
+      <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden select-none">
+        <img
+          src="/hospital-logo.png"
+          alt="Cebu Provincial Hospital Balamban Watermark"
+          className="w-[500px] sm:w-[650px] md:w-[750px] max-w-[90vw] opacity-[0.05] dark:opacity-[0.07] filter contrast-125 saturate-150 blur-[0.5px] scale-105 pointer-events-none"
+        />
+      </div>
+
       {/* Top Header */}
-      <div className="flex justify-between items-center w-full max-w-[98%] mx-auto px-2">
-        <Link href="/" className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-lg">
-          <BookOpen className="w-6 h-6" />
-          <span>PhilHealth Logbook</span>
+      <div className="flex justify-between items-center w-full max-w-[98%] mx-auto px-2 relative z-10">
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="w-9 h-9 bg-white dark:bg-slate-800 p-0.5 rounded-full shadow-md border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+            <img
+              src="/hospital-logo.png"
+              alt="Cebu Provincial Hospital Balamban Logo"
+              className="w-full h-full object-contain rounded-full"
+            />
+          </div>
+          <span className="font-extrabold text-slate-900 dark:text-white text-base sm:text-lg">
+            Cebu Provincial Hospital - Balamban
+          </span>
         </Link>
         <ThemeToggle />
       </div>
 
       {/* Main Login Card - Simplified (Username + Password only) */}
-      <div className="max-w-md w-full mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-6 my-auto">
+      <div className="max-w-md w-full mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-6 my-auto relative z-10">
         
         <div className="text-center space-y-2">
-          <div className="inline-flex p-3.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-2xl mb-1">
-            <ShieldCheck className="w-9 h-9" />
+          <div className="inline-flex p-2 bg-white dark:bg-slate-800 rounded-full shadow-md border border-slate-200 dark:border-slate-700 mb-1">
+            <img
+              src="/hospital-logo.png"
+              alt="Cebu Provincial Hospital Balamban Logo"
+              className="w-20 h-20 sm:w-24 sm:h-24 object-contain"
+            />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Encoder Portal Login
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            PhilHealth Endorsement Data Entry & Daily Logbook
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-bold">
+            PhilHealth Logbook Pro • Hospital Endorsement
           </p>
         </div>
 

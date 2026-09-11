@@ -50,8 +50,12 @@ export function Navbar({ userEmail, onExportExcel, onImportExcelCsv, onDownloadC
           
           {/* Brand */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="p-2.5 bg-emerald-600 dark:bg-emerald-500 text-white rounded-xl shadow-md group-hover:bg-emerald-500 dark:group-hover:bg-emerald-400 transition">
-              <BookOpen className="w-5 h-5" />
+            <div className="relative w-10 h-10 flex-shrink-0 bg-white dark:bg-slate-800 p-0.5 rounded-full shadow-md border border-slate-200 dark:border-slate-700 group-hover:scale-105 transition transform flex items-center justify-center">
+              <img
+                src="/hospital-logo.png"
+                alt="Cebu Provincial Hospital Balamban Logo"
+                className="w-full h-full object-contain rounded-full"
+              />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -62,8 +66,8 @@ export function Navbar({ userEmail, onExportExcel, onImportExcelCsv, onDownloadC
                   Pro
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium hidden md:block">
-                Hospital Endorsement System
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-bold hidden md:block">
+                Cebu Provincial Hospital - Balamban
               </p>
             </div>
           </Link>

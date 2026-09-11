@@ -463,6 +463,15 @@ export default function Dashboard() {
       <div className="absolute top-1/3 -right-32 w-96 h-96 bg-purple-500/10 dark:bg-purple-500/5 rounded-full blur-3xl pointer-events-none animate-float-reverse"></div>
       <div className="absolute bottom-10 left-1/4 w-80 h-80 bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-3xl pointer-events-none animate-glow"></div>
 
+      {/* Background Hospital Logo Watermark Wrap */}
+      <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden select-none">
+        <img
+          src="/hospital-logo.png"
+          alt="Cebu Provincial Hospital Balamban Watermark"
+          className="w-[550px] sm:w-[700px] md:w-[850px] max-w-[90vw] opacity-[0.05] dark:opacity-[0.07] filter contrast-125 saturate-150 blur-[0.5px] scale-105 pointer-events-none"
+        />
+      </div>
+
       <Navbar 
         userEmail={userEmail} 
         onExportExcel={exportExcel} 
