@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { BookOpen, User, Lock, ArrowRight, ShieldCheck, KeyRound } from 'lucide-react';
+import { BookOpen, User, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
@@ -15,12 +15,6 @@ export default function LoginPage() {
   const [encoderName, setEncoderName] = useState('Juvy');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-
-  const fillCredentials = (fillEmail: string, fillPass: string, fillName: string) => {
-    setEmail(fillEmail);
-    setPassword(fillPass);
-    setEncoderName(fillName);
-  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,36 +79,6 @@ export default function LoginPage() {
           <p className="text-xs text-slate-500 dark:text-slate-400">
             PhilHealth Endorsement Data Entry & Daily Logbook
           </p>
-        </div>
-
-        <div className="p-3 bg-slate-100 dark:bg-slate-800/60 rounded-2xl space-y-2 border border-slate-200 dark:border-slate-700/60">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-            <KeyRound className="w-3.5 h-3.5 text-emerald-500" />
-            Quick Demo Logins (1-Click Fill)
-          </span>
-          <div className="grid grid-cols-3 gap-1.5">
-            <button
-              type="button"
-              onClick={() => fillCredentials('admin@hospital.com', 'admin123', 'Admin')}
-              className="px-2 py-1.5 bg-purple-600/10 hover:bg-purple-600/20 text-purple-600 dark:text-purple-300 font-bold text-[11px] rounded-lg border border-purple-500/30 transition text-center"
-            >
-              ADMIN
-            </button>
-            <button
-              type="button"
-              onClick={() => fillCredentials('juvy@hospital.com', 'juvy123', 'Juvy')}
-              className="px-2 py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 dark:text-emerald-300 font-bold text-[11px] rounded-lg border border-emerald-500/30 transition text-center"
-            >
-              JUVY (Encoder)
-            </button>
-            <button
-              type="button"
-              onClick={() => fillCredentials('miko@hospital.com', 'miko123', 'Miko')}
-              className="px-2 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-300 font-bold text-[11px] rounded-lg border border-blue-500/30 transition text-center"
-            >
-              MIKO (Encoder)
-            </button>
-          </div>
         </div>
 
         {errorMsg && (

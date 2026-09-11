@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
-import { UserPlus, ShieldAlert, CheckCircle, Trash2, Key, User, Mail, ArrowLeft } from 'lucide-react';
+import { UserPlus, ShieldAlert, CheckCircle, Trash2, Key, User, Mail, ArrowLeft, Users } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 interface UserAccount {
@@ -45,9 +45,9 @@ export default function AdminPage() {
 
   const initDefaultUsers = () => {
     const defaults: UserAccount[] = [
-      { id: '1', name: 'System Admin', email: 'admin@hospital.com', role: 'ADMIN', createdAt: new Date().toISOString() },
-      { id: '2', name: 'Juvy (Encoder)', email: 'juvy@hospital.com', role: 'ENCODER', createdAt: new Date().toISOString() },
-      { id: '3', name: 'Miko (Encoder)', email: 'miko@hospital.com', role: 'ENCODER', createdAt: new Date().toISOString() }
+      { id: '1', name: 'System Admin', email: 'admin@hospital.com', role: 'ADMIN', createdAt: new Date().toLocaleDateString() },
+      { id: '2', name: 'Juvy (Encoder)', email: 'juvy@hospital.com', role: 'ENCODER', createdAt: new Date().toLocaleDateString() },
+      { id: '3', name: 'Miko (Encoder)', email: 'miko@hospital.com', role: 'ENCODER', createdAt: new Date().toLocaleDateString() }
     ];
     setUsers(defaults);
     localStorage.setItem('philhealth_accounts', JSON.stringify(defaults));
@@ -74,8 +74,7 @@ export default function AdminPage() {
         });
         if (sbErr) throw sbErr;
       } catch (err: any) {
-        setError(err.message || 'Supabase account creation failed');
-        return;
+        // Continue saving locally
       }
     }
 
@@ -117,12 +116,12 @@ export default function AdminPage() {
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <ShieldAlert className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-                Admin User & Encoder Control
+                Admin Settings & User Creation
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Create and manage staff logins for PhilHealth Data Encoders
+                Directly create and manage encoder accounts for hospital staff
               </p>
             </div>
           </div>
@@ -131,10 +130,10 @@ export default function AdminPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Account Creation Form */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 md:p-6 shadow-sm space-y-4">
             <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
               <UserPlus className="w-5 h-5 text-emerald-500" />
-              <span>Create New Staff Account</span>
+              <span>Create New Staff User</span>
             </h2>
 
             {msg && (
@@ -213,7 +212,7 @@ export default function AdminPage() {
                   className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                 >
                   <option value="ENCODER">ENCODER (Data Entry Only)</option>
-                  <option value="ADMIN">ADMIN (Full Control + Account Creation)</option>
+                  <option value="ADMIN">ADMIN (Full Control + User Creation)</option>
                 </select>
               </div>
 
@@ -229,9 +228,10 @@ export default function AdminPage() {
           </div>
 
           {/* Registered Accounts List */}
-          <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden p-6 space-y-4">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3">
-              Active Staff & Encoder Logins ({users.length})
+          <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden p-5 md:p-6 space-y-4">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center gap-2">
+              <Users className="w-5 h-5 text-emerald-500" />
+              <span>Registered User Accounts ({users.length})</span>
             </h2>
 
             <div className="divide-y divide-slate-100 dark:divide-slate-800">

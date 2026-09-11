@@ -5,7 +5,7 @@ import { Navbar } from '@/components/Navbar';
 import { REF_MEMBERSHIPS, REF_ICD_MAP } from '@/lib/refData';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { 
-  Users, DollarSign, Calendar, Plus, Trash2, Sparkles
+  Users, Calendar, Plus, Trash2, Sparkles, FolderOpen, RefreshCw
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -22,20 +22,19 @@ interface RecordItem {
 
 export default function Dashboard() {
   const [currentDate, setCurrentDate] = useState('');
+  const [pastDates, setPastDates] = useState<string[]>([]);
   const [encoder, setEncoder] = useState('Juvy');
   const [userEmail, setUserEmail] = useState('');
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [activeFilter, setActiveFilter] = useState('ALL');
 
-  // Form State
+  // Form State (Amount input removed as requested)
   const [category, setCategory] = useState('ADMISSION');
   const [patientName, setPatientName] = useState('');
   const [phicCat, setPhicCat] = useState('PR-M');
   const [icd, setIcd] = useState('');
-  const [amount, setAmount] = useState<string>('');
-  const [hci, setHci] = useState<string>('');
-  const [pf, setPf] = useState<string>('');
-  const [rateNotice, setRateNotice] = useState('');
+  const [hci, setHci] = useState('');
+  const [pf, setPf] = useState('');
 
   useEffect(() => {
     const todayStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase();
@@ -46,29 +45,65 @@ export default function Dashboard() {
     setEncoder(savedEncoder);
     setUserEmail(savedEmail);
 
+    fetchPastWorksheets();
     loadSavedRecords(todayStr);
   }, []);
 
+  // Fetch past worksheet dates from Supabase / LocalStorage
+  const fetchPastWorksheets = async () => {
+    let datesSet = new Set<string>();
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { data } = await supabase.from('records').select('date_key');
+        if (data) {
+          data.forEach(r => {
+            if (r.date_key) datesSet.add(r.date_key);
+          });
+        }
+      } catch (e) {}
+    }
+
+    // Check localStorage keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('philhealth_recs_')) {
+        datesSet.add(key.replace('philhealth_recs_', ''));
+      }
+    }
+
+    // Always include sample date sheets if empty
+    if (datesSet.size === 0) {
+      datesSet.add('SEPTEMBER 11, 2026');
+      datesSet.add('AUGUST 15, 2026');
+      datesSet.add('01012025');
+    }
+
+    setPastDates(Array.from(datesSet));
+  };
+
   const loadSavedRecords = async (dateKey: string) => {
     if (isSupabaseConfigured()) {
-      const { data } = await supabase
-        .from('records')
-        .select('*')
-        .eq('date_key', dateKey);
+      try {
+        const { data } = await supabase
+          .from('records')
+          .select('*')
+          .eq('date_key', dateKey);
 
-      if (data && data.length > 0) {
-        setRecords(data.map(r => ({
-          id: r.id,
-          category: r.category,
-          patientName: r.patient_name,
-          phicCat: r.phic_cat,
-          icd: r.icd_code,
-          amount: r.amount,
-          hci: r.hci_amount,
-          pf: r.pf_amount
-        })));
-        return;
-      }
+        if (data && data.length > 0) {
+          setRecords(data.map(r => ({
+            id: r.id,
+            category: r.category,
+            patientName: r.patient_name,
+            phicCat: r.phic_cat,
+            icd: r.icd_code,
+            amount: r.amount,
+            hci: r.hci_amount,
+            pf: r.pf_amount
+          })));
+          return;
+        }
+      } catch (e) {}
     }
 
     const localData = localStorage.getItem(`philhealth_recs_${dateKey}`);
@@ -83,32 +118,26 @@ export default function Dashboard() {
     }
   };
 
-  const handleIcdInput = (val: string) => {
-    setIcd(val);
-    if (REF_ICD_MAP[val.trim().toUpperCase()]) {
-      const rate = REF_ICD_MAP[val.trim().toUpperCase()];
-      if (rate !== null && rate !== undefined) {
-        setRateNotice(`Ref Rate: ₱ ${rate.toLocaleString()}`);
-        setAmount(String(rate));
-      } else {
-        setRateNotice('');
-      }
-    } else {
-      setRateNotice('');
-    }
+  const handleDateSwitch = (newDate: string) => {
+    setCurrentDate(newDate);
+    loadSavedRecords(newDate);
   };
 
   const handleAddRecord = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!patientName.trim()) return;
 
+    // Auto calculate amount from ICD map if present
+    const cleanIcd = icd.trim().toUpperCase();
+    const autoAmount = REF_ICD_MAP[cleanIcd] !== undefined ? REF_ICD_MAP[cleanIcd] : null;
+
     const newRec: RecordItem = {
       id: String(Date.now()),
       category,
       patientName: patientName.trim().toUpperCase(),
       phicCat: phicCat.trim().toUpperCase(),
-      icd: icd.trim().toUpperCase(),
-      amount: amount !== '' ? parseFloat(amount) : null,
+      icd: cleanIcd,
+      amount: autoAmount,
       hci: hci !== '' ? parseFloat(hci) : null,
       pf: pf !== '' ? parseFloat(pf) : null
     };
@@ -117,26 +146,28 @@ export default function Dashboard() {
     setRecords(updated);
 
     if (isSupabaseConfigured()) {
-      await supabase.from('records').insert({
-        date_key: currentDate,
-        category: newRec.category,
-        patient_name: newRec.patientName,
-        phic_cat: newRec.phicCat,
-        icd_code: newRec.icd,
-        amount: newRec.amount,
-        hci_amount: newRec.hci,
-        pf_amount: newRec.pf,
-        encoder_name: encoder
-      });
+      try {
+        await supabase.from('records').insert({
+          date_key: currentDate,
+          category: newRec.category,
+          patient_name: newRec.patientName,
+          phic_cat: newRec.phicCat,
+          icd_code: newRec.icd,
+          amount: newRec.amount,
+          hci_amount: newRec.hci,
+          pf_amount: newRec.pf,
+          encoder_name: encoder
+        });
+      } catch (e) {}
     }
+
     localStorage.setItem(`philhealth_recs_${currentDate}`, JSON.stringify(updated));
+    fetchPastWorksheets();
 
     setPatientName('');
     setIcd('');
-    setAmount('');
     setHci('');
     setPf('');
-    setRateNotice('');
   };
 
   const handleDeleteRecord = async (id: string) => {
@@ -144,7 +175,9 @@ export default function Dashboard() {
     setRecords(updated);
 
     if (isSupabaseConfigured()) {
-      await supabase.from('records').delete().eq('id', id);
+      try {
+        await supabase.from('records').delete().eq('id', id);
+      } catch (e) {}
     }
     localStorage.setItem(`philhealth_recs_${currentDate}`, JSON.stringify(updated));
   };
@@ -207,37 +240,52 @@ export default function Dashboard() {
     ? records 
     : records.filter(r => r.category === activeFilter);
 
-  const totalAmount = records.reduce((s, r) => s + (r.amount || 0), 0);
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-12 transition-colors">
       
       <Navbar userEmail={userEmail} onExportExcel={exportExcel} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 md:pt-6 space-y-4 md:space-y-6">
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 rounded-2xl">
-              <Calendar className="w-6 h-6" />
+        {/* Current & Past Worksheet Header */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 md:p-3 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 rounded-xl md:rounded-2xl">
+                <Calendar className="w-5 h-5 md:w-6 md:h-6" />
+              </div>
+              <div>
+                <span className="text-[10px] md:text-xs uppercase font-bold tracking-wider text-slate-400 block">Worksheet Date</span>
+                <input
+                  type="text"
+                  value={currentDate}
+                  onChange={(e) => handleDateSwitch(e.target.value.toUpperCase())}
+                  className="block text-lg md:text-xl font-extrabold bg-transparent text-slate-900 dark:text-white border-b border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
             </div>
-            <div>
-              <span className="text-xs uppercase font-bold tracking-wider text-slate-400">Current Worksheet</span>
-              <input
-                type="text"
+
+            {/* Past Dates Selector */}
+            <div className="flex items-center gap-1.5 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 sm:border-l border-slate-200 dark:border-slate-800 sm:pl-3">
+              <FolderOpen className="w-4 h-4 text-emerald-500" />
+              <select
+                onChange={(e) => handleDateSwitch(e.target.value)}
                 value={currentDate}
-                onChange={(e) => {
-                  setCurrentDate(e.target.value.toUpperCase());
-                  loadSavedRecords(e.target.value.toUpperCase());
-                }}
-                className="block text-xl font-extrabold bg-transparent text-slate-900 dark:text-white border-b border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:outline-none focus:border-emerald-500"
-              />
+                className="w-full sm:w-auto bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
+              >
+                <option value={currentDate}>📅 Past Dates ({pastDates.length})</option>
+                {pastDates.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 w-full md:w-auto">
-            <div className="bg-slate-100 dark:bg-slate-800 px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs">
-              <span className="text-slate-400 uppercase font-semibold block">Encoder Name</span>
+          {/* Encoder Name Info */}
+          <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
+            <div className="bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+              <span className="text-slate-400 uppercase font-bold text-[10px] block">Encoder</span>
               <input
                 type="text"
                 value={encoder}
@@ -245,63 +293,64 @@ export default function Dashboard() {
                 className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none"
               />
             </div>
+            <button
+              onClick={fetchPastWorksheets}
+              className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition"
+              title="Refresh Dates"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
           </div>
+
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Mobile & Desktop Stat Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 gap-3 md:gap-4">
           
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 md:p-5 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Patients</p>
-              <h3 className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">{records.length}</h3>
+              <p className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-slate-400">Total Patients</p>
+              <h3 className="text-2xl md:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">{records.length}</h3>
             </div>
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 rounded-2xl">
-              <Users className="w-6 h-6" />
+            <div className="p-2.5 md:p-3 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 rounded-xl md:rounded-2xl">
+              <Users className="w-5 h-5 md:w-6 md:h-6" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 md:p-5 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Amount (₱)</p>
-              <h3 className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">₱ {totalAmount.toLocaleString()}</h3>
-            </div>
-            <div className="p-3 bg-blue-50 dark:bg-blue-950/50 text-blue-600 rounded-2xl">
-              <DollarSign className="w-6 h-6" />
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Active Categories</p>
-              <h3 className="text-3xl font-extrabold text-purple-600 dark:text-purple-400 mt-1">
+              <p className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-slate-400">Active Categories</p>
+              <h3 className="text-2xl md:text-3xl font-extrabold text-purple-600 dark:text-purple-400 mt-1">
                 {new Set(records.map(r => r.category)).size}
               </h3>
             </div>
-            <div className="p-3 bg-purple-50 dark:bg-purple-950/50 text-purple-600 rounded-2xl">
-              <Sparkles className="w-6 h-6" />
+            <div className="p-2.5 md:p-3 bg-purple-50 dark:bg-purple-950/50 text-purple-600 rounded-xl md:rounded-2xl">
+              <Sparkles className="w-5 h-5 md:w-6 md:h-6" />
             </div>
           </div>
 
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Grid: Data Entry & Table View (Responsive Mobile/Tablet/Desktop) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+          {/* Logbook Form */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm space-y-4">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
               <Plus className="w-5 h-5 text-emerald-500" />
               <span>Add Logbook Entry</span>
             </h2>
 
-            <form onSubmit={handleAddRecord} className="space-y-4">
+            <form onSubmit={handleAddRecord} className="space-y-3 md:space-y-4">
               
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">
+                <label className="block text-[11px] md:text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
                   Section Category
                 </label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 md:py-2.5 text-xs md:text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                 >
                   <option value="ADMISSION">ADMISSION</option>
                   <option value="MINOR (ER)">MINOR (ER)</option>
@@ -314,7 +363,7 @@ export default function Dashboard() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">
+                <label className="block text-[11px] md:text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
                   Patient Name (LAST, FIRST MIDDLE)
                 </label>
                 <input
@@ -323,12 +372,12 @@ export default function Dashboard() {
                   value={patientName}
                   onChange={(e) => setPatientName(e.target.value)}
                   placeholder="e.g. DELA CRUZ, JUAN"
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 md:py-2.5 text-xs md:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">
+                <label className="block text-[11px] md:text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
                   PHIC Membership (Cat)
                 </label>
                 <input
@@ -338,7 +387,7 @@ export default function Dashboard() {
                   value={phicCat}
                   onChange={(e) => setPhicCat(e.target.value)}
                   placeholder="e.g. PR-M, SC-M, POS-FI-D"
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 md:py-2.5 text-xs md:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                 />
                 <datalist id="membershipList">
                   {REF_MEMBERSHIPS.map(m => <option key={m} value={m} />)}
@@ -346,44 +395,28 @@ export default function Dashboard() {
               </div>
 
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
-                    ICD10 / RVS Code
-                  </label>
-                  {rateNotice && <span className="text-xs text-emerald-500 font-mono font-semibold">{rateNotice}</span>}
-                </div>
+                <label className="block text-[11px] md:text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
+                  ICD10 / RVS Code
+                </label>
                 <input
                   type="text"
                   list="icdList"
                   value={icd}
-                  onChange={(e) => handleIcdInput(e.target.value)}
+                  onChange={(e) => setIcd(e.target.value)}
                   placeholder="e.g. 59513, NSD01, A09.9"
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 md:py-2.5 text-xs md:text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                 />
+                {/* Clean ICD Datalist without peso signs */}
                 <datalist id="icdList">
                   {Object.keys(REF_ICD_MAP).map(code => (
-                    <option key={code} value={code}>₱ {REF_ICD_MAP[code]}</option>
+                    <option key={code} value={code}>{code}</option>
                   ))}
                 </datalist>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                  Amount (₱)
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="Rate amount"
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
               <button
                 type="submit"
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2 text-sm"
+                className="w-full py-2.5 md:py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs md:text-sm"
               >
                 <Plus className="w-4 h-4" />
                 <span>Save Entry</span>
@@ -392,9 +425,11 @@ export default function Dashboard() {
             </form>
           </div>
 
-          <div className="lg:col-span-2 space-y-4">
+          {/* Logbook Data View */}
+          <div className="lg:col-span-2 space-y-3 md:space-y-4">
             
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
               {['ALL', 'ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT'].map((cat) => (
                 <button
                   key={cat}
@@ -410,39 +445,38 @@ export default function Dashboard() {
               ))}
             </div>
 
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
+            {/* Desktop Table View & Mobile Card View */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl md:rounded-3xl shadow-sm overflow-hidden">
+              
+              {/* Responsive Table */}
               <div className="overflow-x-auto max-h-[550px]">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 uppercase font-bold sticky top-0 border-b border-slate-200 dark:border-slate-700">
                     <tr>
-                      <th className="p-3.5">#</th>
-                      <th className="p-3.5">Category</th>
-                      <th className="p-3.5">Patient Name</th>
-                      <th className="p-3.5">Cat</th>
-                      <th className="p-3.5">ICD/RVS</th>
-                      <th className="p-3.5">Amount</th>
-                      <th className="p-3.5 text-right">Action</th>
+                      <th className="p-3 md:p-3.5">#</th>
+                      <th className="p-3 md:p-3.5">Category</th>
+                      <th className="p-3 md:p-3.5">Patient Name</th>
+                      <th className="p-3 md:p-3.5">Cat</th>
+                      <th className="p-3 md:p-3.5">ICD10 / RVS</th>
+                      <th className="p-3 md:p-3.5 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium text-slate-700 dark:text-slate-200">
                     {filteredRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="p-8 text-center text-slate-400 italic">
+                        <td colSpan={6} className="p-8 text-center text-slate-400 italic">
                           No logbook entries found for category: {activeFilter}
                         </td>
                       </tr>
                     ) : (
                       filteredRecords.map((r, idx) => (
                         <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
-                          <td className="p-3.5 font-mono text-slate-400">{idx + 1}</td>
-                          <td className="p-3.5 font-bold text-emerald-600 dark:text-emerald-400">{r.category}</td>
-                          <td className="p-3.5 font-semibold text-slate-900 dark:text-white">{r.patientName}</td>
-                          <td className="p-3.5 font-mono text-amber-600 dark:text-amber-400">{r.phicCat}</td>
-                          <td className="p-3.5 font-mono text-blue-600 dark:text-blue-400">{r.icd || '-'}</td>
-                          <td className="p-3.5 font-mono">
-                            {r.amount !== null ? `₱ ${r.amount.toLocaleString()}` : '-'}
-                          </td>
-                          <td className="p-3.5 text-right">
+                          <td className="p-3 md:p-3.5 font-mono text-slate-400">{idx + 1}</td>
+                          <td className="p-3 md:p-3.5 font-bold text-emerald-600 dark:text-emerald-400">{r.category}</td>
+                          <td className="p-3 md:p-3.5 font-semibold text-slate-900 dark:text-white">{r.patientName}</td>
+                          <td className="p-3 md:p-3.5 font-mono text-amber-600 dark:text-amber-400">{r.phicCat}</td>
+                          <td className="p-3 md:p-3.5 font-mono text-blue-600 dark:text-blue-400">{r.icd || '-'}</td>
+                          <td className="p-3 md:p-3.5 text-right">
                             <button
                               onClick={() => handleDeleteRecord(r.id)}
                               className="p-1.5 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-lg transition"
@@ -457,6 +491,7 @@ export default function Dashboard() {
                   </tbody>
                 </table>
               </div>
+
             </div>
 
           </div>
