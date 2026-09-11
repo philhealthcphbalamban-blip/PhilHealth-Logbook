@@ -21,7 +21,7 @@ export const REF_MEMBERSHIPS = [
   "LGU-D"
 ];
 
-export const REF_ICD_MAP: Record<string, number> = {
+export const REF_ICD_MAP: Record<string, number | null> = {
   "10060": null,
   "10120": null,
   "10140": null,

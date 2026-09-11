@@ -87,8 +87,12 @@ export default function Dashboard() {
     setIcd(val);
     if (REF_ICD_MAP[val.trim().toUpperCase()]) {
       const rate = REF_ICD_MAP[val.trim().toUpperCase()];
-      setRateNotice(`Ref Rate: ₱ ${rate.toLocaleString()}`);
-      setAmount(String(rate));
+      if (rate !== null && rate !== undefined) {
+        setRateNotice(`Ref Rate: ₱ ${rate.toLocaleString()}`);
+        setAmount(String(rate));
+      } else {
+        setRateNotice('');
+      }
     } else {
       setRateNotice('');
     }

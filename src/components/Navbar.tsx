@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ThemeToggle } from './ThemeToggle';
-import { BookOpen, LogOut, User, Download, CloudCheck, HardDrive, ShieldAlert } from 'lucide-react';
+import { BookOpen, LogOut, User, Download, Cloud, HardDrive, ShieldAlert } from 'lucide-react';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
 interface NavbarProps {
@@ -42,7 +42,7 @@ export function Navbar({ userEmail, onExportExcel, onLogout }: NavbarProps) {
           <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
             {hasCloud ? (
               <>
-                <CloudCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <Cloud className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Supabase Live</span>
               </>
             ) : (
