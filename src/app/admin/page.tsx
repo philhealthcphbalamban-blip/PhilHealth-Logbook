@@ -45,9 +45,7 @@ export default function AdminPage() {
 
   const initDefaultUsers = () => {
     const defaults: UserAccount[] = [
-      { id: '1', name: 'System Admin', email: 'admin@hospital.com', role: 'ADMIN', createdAt: new Date().toLocaleDateString() },
-      { id: '2', name: 'Juvy (Encoder)', email: 'juvy@hospital.com', role: 'ENCODER', createdAt: new Date().toLocaleDateString() },
-      { id: '3', name: 'Miko (Encoder)', email: 'miko@hospital.com', role: 'ENCODER', createdAt: new Date().toLocaleDateString() }
+      { id: '1', name: 'System Admin', email: 'admin@hospital.com', role: 'ADMIN', createdAt: new Date().toLocaleDateString() }
     ];
     setUsers(defaults);
     localStorage.setItem('philhealth_accounts', JSON.stringify(defaults));
