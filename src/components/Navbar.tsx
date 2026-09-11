@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ThemeToggle } from './ThemeToggle';
-import { BookOpen, LogOut, User, Download, Upload, FileText, Cloud, HardDrive, ShieldAlert, Menu, X, Key, Eye, EyeOff, Lock, CheckCircle } from 'lucide-react';
+import { BookOpen, LogOut, User, Download, Upload, FileText, Cloud, HardDrive, ShieldAlert, Menu, X, Key, Eye, EyeOff, Lock, CheckCircle, Printer, BarChart3, Database } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 interface NavbarProps {
@@ -12,9 +12,20 @@ interface NavbarProps {
   onExportExcel?: () => void;
   onImportExcelCsv?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDownloadCsvTemplate?: () => void;
+  onPrintSheet?: () => void;
+  onOpenAnalytics?: () => void;
+  onBackupSystem?: () => void;
 }
 
-export function Navbar({ userEmail, onExportExcel, onImportExcelCsv, onDownloadCsvTemplate }: NavbarProps) {
+export function Navbar({ 
+  userEmail, 
+  onExportExcel, 
+  onImportExcelCsv, 
+  onDownloadCsvTemplate,
+  onPrintSheet,
+  onOpenAnalytics,
+  onBackupSystem
+}: NavbarProps) {
   const router = useRouter();
   const hasCloud = isSupabaseConfigured();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -45,7 +56,7 @@ export function Navbar({ userEmail, onExportExcel, onImportExcelCsv, onDownloadC
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200/80 dark:border-slate-800/80 transition-colors shadow-sm">
+      <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200/80 dark:border-slate-800/80 transition-colors shadow-sm no-print">
         <div className="max-w-[98%] mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-4">
           
           {/* Brand */}
@@ -89,6 +100,30 @@ export function Navbar({ userEmail, onExportExcel, onImportExcelCsv, onDownloadC
             </div>
 
             <ThemeToggle />
+
+            {/* Print Endorsement Sheet */}
+            {onPrintSheet && (
+              <button
+                onClick={onPrintSheet}
+                className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition border border-slate-200 dark:border-slate-700"
+                title="Print Official Daily Endorsement Sheet"
+              >
+                <Printer className="w-4 h-4 text-indigo-500" />
+                <span>Print Sheet</span>
+              </button>
+            )}
+
+            {/* Analytics Dashboard */}
+            {onOpenAnalytics && (
+              <button
+                onClick={onOpenAnalytics}
+                className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition border border-slate-200 dark:border-slate-700"
+                title="View Analytics & Monthly Claims Charts"
+              >
+                <BarChart3 className="w-4 h-4 text-purple-500" />
+                <span>Analytics</span>
+              </button>
+            )}
 
             {/* CSV Template Download Button */}
             {onDownloadCsvTemplate && (
@@ -184,6 +219,26 @@ export function Navbar({ userEmail, onExportExcel, onImportExcelCsv, onDownloadC
               <Key className="w-4 h-4 text-amber-500" />
               <span>Change Password</span>
             </button>
+
+            {onPrintSheet && (
+              <button
+                onClick={() => { onPrintSheet(); setMobileMenuOpen(false); }}
+                className="flex items-center gap-2 w-full p-3 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold"
+              >
+                <Printer className="w-4 h-4 text-indigo-500" />
+                <span>Print Endorsement Sheet</span>
+              </button>
+            )}
+
+            {onOpenAnalytics && (
+              <button
+                onClick={() => { onOpenAnalytics(); setMobileMenuOpen(false); }}
+                className="flex items-center gap-2 w-full p-3 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold"
+              >
+                <BarChart3 className="w-4 h-4 text-purple-500" />
+                <span>Analytics & Charts</span>
+              </button>
+            )}
 
             {isAdmin && (
               <Link

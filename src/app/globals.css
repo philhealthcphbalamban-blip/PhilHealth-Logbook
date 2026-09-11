@@ -133,3 +133,34 @@ html[data-color-theme="rose"] {
 .focus\:border-emerald-500:focus {
   border-color: var(--theme-primary) !important;
 }
+
+/* Print Styles for Official Hospital Daily Endorsement Sheet */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  header, nav, .no-print, button, form, input[type="file"], .parallax-card {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .shadow-sm, .shadow-md, .shadow-xl, .shadow-2xl {
+    box-shadow: none !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    border: 1px solid #94a3b8 !important;
+    padding: 6px 8px !important;
+    color: #000000 !important;
+  }
+}

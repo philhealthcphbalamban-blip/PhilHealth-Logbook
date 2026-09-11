@@ -5,7 +5,7 @@ import { Navbar } from '@/components/Navbar';
 import { REF_MEMBERSHIPS, REF_ICD_MAP } from '@/lib/refData';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { 
-  Users, Calendar, Plus, Trash2, Sparkles, FolderOpen, RefreshCw
+  Users, Calendar, Plus, Trash2, Sparkles, FolderOpen, RefreshCw, Search, Printer, BarChart3, Database, X, CheckCircle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -40,6 +40,10 @@ export default function Dashboard() {
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [dupError, setDupError] = useState('');
+
+  // New Features State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
 
   // Form State (Amount input removed as requested)
   const [category, setCategory] = useState('ADMISSION');
@@ -451,9 +455,43 @@ export default function Dashboard() {
     e.target.value = '';
   };
 
-  const filteredRecords = activeFilter === 'ALL' 
-    ? records 
-    : records.filter(r => r.category === activeFilter);
+  // Handle Official Hospital Print Endorsement Sheet
+  const handlePrintSheet = () => {
+    window.print();
+  };
+
+  // Full System Data Backup (.JSON)
+  const handleBackupSystem = () => {
+    const backupData: Record<string, any> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('philhealth_') || key.startsWith('supabase.'))) {
+        backupData[key] = localStorage.getItem(key);
+      }
+    }
+
+    const jsonStr = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `philhealth_logbook_backup_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const filteredRecords = records.filter(r => {
+    const matchesCategory = activeFilter === 'ALL' || r.category === activeFilter;
+    const q = searchQuery.trim().toLowerCase();
+    const matchesSearch = !q || 
+      (r.patientName && r.patientName.toLowerCase().includes(q)) ||
+      (r.icd && r.icd.toLowerCase().includes(q)) ||
+      (r.phicCat && r.phicCat.toLowerCase().includes(q)) ||
+      (r.encoderName && r.encoderName.toLowerCase().includes(q)) ||
+      (r.category && r.category.toLowerCase().includes(q));
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-12 transition-colors relative overflow-hidden">
@@ -477,6 +515,9 @@ export default function Dashboard() {
         onExportExcel={exportExcel} 
         onImportExcelCsv={handleFileUpload}
         onDownloadCsvTemplate={downloadCsvTemplate}
+        onPrintSheet={handlePrintSheet}
+        onOpenAnalytics={() => setShowAnalyticsModal(true)}
+        onBackupSystem={handleBackupSystem}
       />
 
       <main className="max-w-[98%] mx-auto px-2 sm:px-4 lg:px-6 pt-4 md:pt-6 space-y-4 md:space-y-6 relative z-10">
@@ -649,6 +690,20 @@ export default function Dashboard() {
                   placeholder="e.g. 59513, NSD01, A09.9, or any new ICD10 code"
                   className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 md:py-2.5 text-xs md:text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                 />
+                {/* Quick-fill ICD Shortcuts */}
+                <div className="flex items-center gap-1 flex-wrap mt-2">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Quick:</span>
+                  {['NSD01', '59513', 'A09.9', 'K29.7', 'J06.9', 'I10'].map(code => (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => setIcd(code)}
+                      className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/80 text-slate-700 dark:text-slate-300 font-mono text-[11px] font-bold border border-slate-200 dark:border-slate-700 transition"
+                    >
+                      {code}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <button
@@ -665,21 +720,36 @@ export default function Dashboard() {
           {/* Logbook Data View */}
           <div className="lg:col-span-2 space-y-3 md:space-y-4">
             
-            {/* Filter Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-              {['ALL', 'ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT'].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveFilter(cat)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-                    activeFilter === cat 
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+            {/* Search & Filter Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              {/* Filter Tabs */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                {['ALL', 'ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveFilter(cat)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                      activeFilter === cat 
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              {/* Global Search Bar */}
+              <div className="relative min-w-[200px] sm:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search patient, ICD, encoder..."
+                  className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:outline-none focus:border-emerald-500 text-slate-900 dark:text-white shadow-sm"
+                />
+              </div>
             </div>
 
             {/* Desktop Table View & Mobile Card View */}
@@ -753,6 +823,212 @@ export default function Dashboard() {
 
       </main>
 
+      {/* Analytics Modal */}
+      <AnalyticsModal 
+        isOpen={showAnalyticsModal} 
+        onClose={() => setShowAnalyticsModal(false)} 
+        records={records} 
+        currentDate={currentDate} 
+      />
+
+      {/* Printable Official Hospital Endorsement Sheet */}
+      <div className="hidden print-only p-8 text-black space-y-6">
+        <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4">
+          <div className="flex items-center gap-4">
+            <img src="/hospital-logo.png" alt="Hospital Seal" className="w-16 h-16 object-contain" />
+            <div>
+              <h1 className="text-xl font-bold uppercase tracking-wide">Cebu Provincial Hospital - Balamban</h1>
+              <p className="text-sm font-semibold">PhilHealth Daily Endorsement & Logbook Summary Sheet</p>
+            </div>
+          </div>
+          <div className="text-right text-xs font-mono">
+            <p><strong>Date:</strong> {currentDate}</p>
+            <p><strong>Encoder:</strong> {encoder}</p>
+            <p><strong>Total Patients:</strong> {records.length}</p>
+          </div>
+        </div>
+
+        {/* Section Summary Table */}
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wider mb-2">Section Patient Summary Breakdown</h3>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-slate-100">
+                {['ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT'].map(cat => (
+                  <th key={cat} className="p-2 border border-slate-400 text-center font-bold text-[10px]">{cat}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                {['ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT'].map(cat => (
+                  <td key={cat} className="p-2 border border-slate-400 text-center font-bold text-sm">
+                    {records.filter(r => r.category === cat).length}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Full Patient List Table */}
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wider mb-2">Patient Endorsement Records</h3>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-slate-100 font-bold">
+                <th className="p-2 border">#</th>
+                <th className="p-2 border">Category</th>
+                <th className="p-2 border">Patient Name</th>
+                <th className="p-2 border">PHIC Cat</th>
+                <th className="p-2 border">ICD10 / RVS</th>
+                <th className="p-2 border">Encoder</th>
+              </tr>
+            </thead>
+            <tbody>
+              {records.map((r, idx) => (
+                <tr key={r.id}>
+                  <td className="p-2 border text-center font-mono">{idx + 1}</td>
+                  <td className="p-2 border font-bold">{r.category}</td>
+                  <td className="p-2 border font-semibold">{r.patientName}</td>
+                  <td className="p-2 border text-center font-mono">{r.phicCat}</td>
+                  <td className="p-2 border font-mono">{r.icd || '-'}</td>
+                  <td className="p-2 border">{r.encoderName || encoder}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Official Signatures Block */}
+        <div className="pt-12 grid grid-cols-2 gap-12 text-xs">
+          <div>
+            <p className="font-bold">Prepared By:</p>
+            <div className="mt-8 border-b border-black w-48"></div>
+            <p className="mt-1 font-semibold">{encoder}</p>
+            <p className="text-[10px] text-slate-500">PhilHealth Encoder</p>
+          </div>
+          <div>
+            <p className="font-bold">Approved / Noted By:</p>
+            <div className="mt-8 border-b border-black w-48"></div>
+            <p className="mt-1 font-semibold">Hospital Supervisor / Admin</p>
+            <p className="text-[10px] text-slate-500">Cebu Provincial Hospital - Balamban</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+function AnalyticsModal({ isOpen, onClose, records, currentDate }: { isOpen: boolean; onClose: () => void; records: RecordItem[]; currentDate: string }) {
+  if (!isOpen) return null;
+
+  const categories = ['ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT'];
+  const total = records.length || 1;
+
+  const phicCounts: Record<string, number> = {};
+  records.forEach(r => {
+    const c = r.phicCat || 'PR-M';
+    phicCounts[c] = (phicCounts[c] || 0) + 1;
+  });
+
+  const icdCounts: Record<string, number> = {};
+  records.forEach(r => {
+    if (r.icd) {
+      icdCounts[r.icd] = (icdCounts[r.icd] || 0) + 1;
+    }
+  });
+  const topIcds = Object.entries(icdCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm no-print">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-3xl rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 rounded-xl transition"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 rounded-2xl">
+            <BarChart3 className="w-7 h-7" />
+          </div>
+          <div>
+            <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
+              Logbook Analytics & Claims Summary
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Worksheet Date: <span className="font-bold text-emerald-600 dark:text-emerald-400">{currentDate}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Section Volume Breakdown Progress Bars */}
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Patient Volume by Section Category
+          </h4>
+          <div className="space-y-2">
+            {categories.map(cat => {
+              const count = records.filter(r => r.category === cat).length;
+              const pct = Math.round((count / total) * 100);
+              return (
+                <div key={cat} className="space-y-1">
+                  <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <span>{cat}</span>
+                    <span>{count} patients ({pct}%)</span>
+                  </div>
+                  <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-500 to-purple-600 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.max(pct, count > 0 ? 5 : 0)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* PHIC Membership & Top ICD Summary Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/60 space-y-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              PHIC Membership Breakdown
+            </h4>
+            <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              {Object.entries(phicCounts).map(([cat, count]) => (
+                <div key={cat} className="flex justify-between text-xs font-semibold">
+                  <span className="font-mono text-amber-600 dark:text-amber-400">{cat}</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{count} patients</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/60 space-y-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Top Encoded ICD-10 / RVS Codes
+            </h4>
+            <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              {topIcds.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">No ICD codes recorded yet.</p>
+              ) : (
+                topIcds.map(([code, count]) => (
+                  <div key={code} className="flex justify-between text-xs font-semibold">
+                    <span className="font-mono text-blue-600 dark:text-blue-400">{code}</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{count} cases</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+        </div>
+      </div>
     </div>
   );
 }
