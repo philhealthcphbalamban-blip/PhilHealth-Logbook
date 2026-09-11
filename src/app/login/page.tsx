@@ -21,31 +21,36 @@ export default function LoginPage() {
     const activeUser = username.trim() || 'Encoder';
     const generatedEmail = activeUser.toLowerCase().replace(/[^a-z0-9]/g, '') + '@hospital.com';
 
-    if (isSupabaseConfigured()) {
-      try {
-        const { error: signInErr } = await supabase.auth.signInWithPassword({
-          email: generatedEmail,
-          password: password || 'default123',
-        });
-
-        if (signInErr) {
-          await supabase.auth.signUp({
-            email: generatedEmail,
-            password: password || 'default123',
-            options: {
-              data: { encoder_name: activeUser },
-            },
-          });
-        }
-      } catch (err: any) {
-        console.log('Auth notice:', err.message);
-      }
-    }
-
+    // 1. Instant local state & storage set
     localStorage.setItem('philhealth_encoder', activeUser);
     localStorage.setItem('philhealth_user_email', generatedEmail);
-    setLoading(false);
+
+    // 2. Instant redirect to main logbook page (Zero Delay)
     router.push('/');
+
+    // 3. Non-blocking background sync with Supabase
+    if (isSupabaseConfigured()) {
+      (async () => {
+        try {
+          const { error: signInErr } = await supabase.auth.signInWithPassword({
+            email: generatedEmail,
+            password: password || 'default123',
+          });
+
+          if (signInErr) {
+            await supabase.auth.signUp({
+              email: generatedEmail,
+              password: password || 'default123',
+              options: {
+                data: { encoder_name: activeUser },
+              },
+            });
+          }
+        } catch (err: any) {
+          console.log('Background auth notice:', err.message);
+        }
+      })();
+    }
   };
 
   return (

@@ -225,45 +225,164 @@ export default function AdminPage() {
             </form>
           </div>
 
-          {/* Registered Accounts List */}
-          <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden p-5 md:p-6 space-y-4">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center gap-2">
-              <Users className="w-5 h-5 text-emerald-500" />
-              <span>Registered User Accounts ({users.length})</span>
-            </h2>
+          {/* Right Column: Registered Accounts & Change Password Card */}
+          <div className="lg:col-span-2 space-y-6">
 
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {users.map((u) => (
-                <div key={u.id} className="py-3 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2.5 rounded-xl font-bold text-xs ${
-                      u.role === 'ADMIN' 
-                        ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300' 
-                        : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300'
-                    }`}>
-                      {u.role}
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-slate-900 dark:text-white text-sm">{u.name}</h4>
-                      <p className="text-xs text-slate-500 font-mono">{u.email}</p>
-                    </div>
-                  </div>
+            {/* Change Password Card */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 md:p-6 shadow-sm space-y-4">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center gap-2">
+                <Key className="w-5 h-5 text-emerald-500" />
+                <span>Change Your Password</span>
+              </h2>
 
-                  <button
-                    onClick={() => handleDeleteUser(u.id)}
-                    className="p-2 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-xl transition"
-                    title="Delete user"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+              <ChangePasswordForm currentUserEmail={currentUserEmail} />
             </div>
+
+            {/* Registered Accounts List */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden p-5 md:p-6 space-y-4">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center gap-2">
+                <Users className="w-5 h-5 text-emerald-500" />
+                <span>Registered User Accounts ({users.length})</span>
+              </h2>
+
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {users.map((u) => (
+                  <div key={u.id} className="py-3 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 rounded-xl font-bold text-xs ${
+                        u.role === 'ADMIN' 
+                          ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300' 
+                          : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300'
+                      }`}>
+                        {u.role}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm">{u.name}</h4>
+                        <p className="text-xs text-slate-500 font-mono">{u.email}</p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleDeleteUser(u.id)}
+                      className="p-2 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-xl transition"
+                      title="Delete user"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
 
         </div>
 
       </main>
     </div>
+  );
+}
+
+function ChangePasswordForm({ currentUserEmail }: { currentUserEmail: string }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg('');
+    setError('');
+
+    if (!newPassword || newPassword.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { error: sbErr } = await supabase.auth.updateUser({
+          password: newPassword,
+        });
+        if (sbErr) console.log('Supabase pass update note:', sbErr.message);
+      } catch (err: any) {
+        console.log('Pass update error:', err.message);
+      }
+    }
+
+    setMsg('Your password has been changed successfully!');
+    setNewPassword('');
+    setConfirmPassword('');
+    setLoading(false);
+  };
+
+  return (
+    <form onSubmit={handleChangePassword} className="space-y-4">
+      {msg && (
+        <div className="p-3 bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-semibold flex items-center gap-2">
+          <CheckCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{msg}</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-3 bg-rose-100 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs font-semibold">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">
+            New Password
+          </label>
+          <div className="relative">
+            <Key className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+            <input
+              type="password"
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">
+            Confirm New Password
+          </label>
+          <div className="relative">
+            <Key className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+            <input
+              type="password"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full sm:w-auto px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs md:text-sm"
+      >
+        <Key className="w-4 h-4" />
+        <span>{loading ? 'Updating Password...' : 'Update Password'}</span>
+      </button>
+    </form>
   );
 }

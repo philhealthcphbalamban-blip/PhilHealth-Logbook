@@ -36,8 +36,11 @@ export default function Dashboard() {
   const [hci, setHci] = useState('');
   const [pf, setPf] = useState('');
 
+  const [selectedIsoDate, setSelectedIsoDate] = useState(() => new Date().toISOString().split('T')[0]);
+
   useEffect(() => {
-    const todayStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase();
+    const todayObj = new Date();
+    const todayStr = todayObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase();
     setCurrentDate(todayStr);
 
     const savedEncoder = localStorage.getItem('philhealth_encoder') || 'Juvy';
@@ -48,6 +51,22 @@ export default function Dashboard() {
     fetchPastWorksheets();
     loadSavedRecords(todayStr);
   }, []);
+
+  const handleDatePickerChange = (isoVal: string) => {
+    if (!isoVal) return;
+    setSelectedIsoDate(isoVal);
+
+    const parts = isoVal.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      const formattedKey = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase();
+      setCurrentDate(formattedKey);
+      loadSavedRecords(formattedKey);
+    }
+  };
 
   // Fetch past worksheet dates from Supabase / LocalStorage
   const fetchPastWorksheets = async () => {
@@ -266,19 +285,23 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Past Dates Selector */}
-            <div className="flex items-center gap-1.5 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 sm:border-l border-slate-200 dark:border-slate-800 sm:pl-3">
-              <FolderOpen className="w-4 h-4 text-emerald-500" />
-              <select
-                onChange={(e) => handleDateSwitch(e.target.value)}
-                value={currentDate}
-                className="w-full sm:w-auto bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
+            {/* Native Date Picker Selector */}
+            <div className="flex items-center gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 sm:border-l border-slate-200 dark:border-slate-800 sm:pl-3">
+              <Calendar className="w-4 h-4 text-emerald-500 hidden sm:block" />
+              <input
+                type="date"
+                value={selectedIsoDate}
+                onChange={(e) => handleDatePickerChange(e.target.value)}
+                className="w-full sm:w-auto bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
+              />
+              <button
+                type="button"
+                onClick={() => handleDatePickerChange(new Date().toISOString().split('T')[0])}
+                className="px-2.5 py-1.5 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 rounded-xl text-xs font-bold transition whitespace-nowrap"
+                title="Jump to Today"
               >
-                <option value={currentDate}>📅 Past Dates ({pastDates.length})</option>
-                {pastDates.map(d => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
+                Today
+              </button>
             </div>
           </div>
 
