@@ -301,6 +301,156 @@ export default function Dashboard() {
     XLSX.writeFile(wb, `PhilHealth_${currentDate.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
   };
 
+  // Download Sample CSV Template
+  const downloadCsvTemplate = () => {
+    const headers = ['Category', 'Patient Name', 'Phic Cat', 'ICD10 Code', 'Encoder'];
+    const sampleRows = [
+      ['ADMISSION', 'JUAN DELA CRUZ', 'PR-M', '59513', encoder || 'System'],
+      ['MINOR (ER)', 'MARIA SANTOS', 'PR-S', 'NSD01', encoder || 'System'],
+      ['DENTAL', 'PEDRO PENDUKO', 'NPR', 'A09.9', encoder || 'System']
+    ];
+
+    const csvContent = [
+      headers.join(','),
+      ...sampleRows.map(row => row.map(val => `"${val.replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'philhealth_logbook_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Handle Excel (.xlsx, .xls) and CSV file uploads
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const arrayBuffer = evt.target?.result;
+        if (!arrayBuffer) return;
+
+        const wb = XLSX.read(arrayBuffer, { type: 'array' });
+        const firstSheetName = wb.SheetNames[0];
+        const sheet = wb.Sheets[firstSheetName];
+        
+        const rawData: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        if (!rawData || rawData.length === 0) {
+          alert('The uploaded file is empty.');
+          return;
+        }
+
+        const newRecords: RecordItem[] = [];
+
+        // Look for header row index
+        let headerRowIndex = -1;
+        let categoryCol = -1, nameCol = -1, phicCol = -1, icdCol = -1, encoderCol = -1;
+
+        for (let r = 0; r < Math.min(15, rawData.length); r++) {
+          const row = rawData[r];
+          if (Array.isArray(row)) {
+            row.forEach((cell: any, cIdx: number) => {
+              const str = String(cell || '').trim().toUpperCase();
+              if (str.includes('CATEGORY')) categoryCol = cIdx;
+              if (str.includes('PATIENT') || str.includes('NAME')) nameCol = cIdx;
+              if ((str.includes('PHIC') || str === 'CAT') && cIdx !== categoryCol) phicCol = cIdx;
+              if (str.includes('ICD') || str.includes('RVS')) icdCol = cIdx;
+              if (str.includes('ENCODER')) encoderCol = cIdx;
+            });
+            if (nameCol !== -1) {
+              headerRowIndex = r;
+              break;
+            }
+          }
+        }
+
+        if (headerRowIndex !== -1 && nameCol !== -1) {
+          for (let r = headerRowIndex + 1; r < rawData.length; r++) {
+            const row = rawData[r];
+            if (!row || row.length === 0) continue;
+
+            const pName = String(row[nameCol] || '').trim();
+            if (!pName || pName.toUpperCase() === 'PATIENT NAME' || pName.startsWith('#')) continue;
+
+            const cat = categoryCol !== -1 && row[categoryCol] ? String(row[categoryCol]).trim().toUpperCase() : category;
+            const phic = phicCol !== -1 && row[phicCol] ? String(row[phicCol]).trim() : 'PR-M';
+            const icdVal = icdCol !== -1 && row[icdCol] ? String(row[icdCol]).trim() : '';
+            const enc = encoderCol !== -1 && row[encoderCol] ? String(row[encoderCol]).trim() : encoder;
+
+            newRecords.push({
+              id: (Date.now() + Math.random()).toString(),
+              category: cat || 'ADMISSION',
+              patientName: pName,
+              phicCat: phic,
+              icd: icdVal,
+              amount: null,
+              encoderName: enc
+            });
+          }
+        } else {
+          // Fallback: parse simple multi-column rows or standard list
+          for (let r = 0; r < rawData.length; r++) {
+            const row = rawData[r];
+            if (Array.isArray(row) && row.length >= 2) {
+              const val1 = String(row[1] || '').trim();
+              if (val1 && val1.toUpperCase() !== 'PATIENT NAME' && !val1.startsWith('#')) {
+                newRecords.push({
+                  id: (Date.now() + Math.random()).toString(),
+                  category: String(row[0] || category).trim().toUpperCase(),
+                  patientName: val1,
+                  phicCat: String(row[2] || 'PR-M').trim(),
+                  icd: String(row[3] || '').trim(),
+                  amount: null,
+                  encoderName: String(row[4] || encoder).trim()
+                });
+              }
+            }
+          }
+        }
+
+        if (newRecords.length === 0) {
+          alert('⚠️ No valid patient entries found in file. Please download and fill out the CSV Template.');
+          return;
+        }
+
+        const merged = deduplicateRecords([...records, ...newRecords]);
+        setRecords(merged);
+        localStorage.setItem(`philhealth_recs_${currentDate}`, JSON.stringify(merged));
+
+        // Push to Supabase if configured
+        if (isSupabaseConfigured()) {
+          for (const item of newRecords) {
+            try {
+              await supabase.from('records').insert({
+                date_key: currentDate,
+                category: item.category,
+                patient_name: item.patientName,
+                phic_cat: item.phicCat,
+                icd_code: item.icd,
+                amount: null,
+                encoder_name: item.encoderName || encoder
+              });
+            } catch (e) {}
+          }
+        }
+
+        fetchPastWorksheets();
+        alert(`✅ Successfully imported ${newRecords.length} patient entries into ${currentDate}!`);
+      } catch (err: any) {
+        alert(`❌ Error parsing file: ${err?.message || 'Invalid Excel/CSV format'}`);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  };
+
   const filteredRecords = activeFilter === 'ALL' 
     ? records 
     : records.filter(r => r.category === activeFilter);
@@ -313,7 +463,12 @@ export default function Dashboard() {
       <div className="absolute top-1/3 -right-32 w-96 h-96 bg-purple-500/10 dark:bg-purple-500/5 rounded-full blur-3xl pointer-events-none animate-float-reverse"></div>
       <div className="absolute bottom-10 left-1/4 w-80 h-80 bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-3xl pointer-events-none animate-glow"></div>
 
-      <Navbar userEmail={userEmail} onExportExcel={exportExcel} />
+      <Navbar 
+        userEmail={userEmail} 
+        onExportExcel={exportExcel} 
+        onImportExcelCsv={handleFileUpload}
+        onDownloadCsvTemplate={downloadCsvTemplate}
+      />
 
       <main className="max-w-[98%] mx-auto px-2 sm:px-4 lg:px-6 pt-4 md:pt-6 space-y-4 md:space-y-6 relative z-10">
 

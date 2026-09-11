@@ -4,15 +4,17 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ThemeToggle } from './ThemeToggle';
-import { BookOpen, LogOut, User, Download, Cloud, HardDrive, ShieldAlert, Menu, X, Key, Eye, EyeOff, Lock, CheckCircle } from 'lucide-react';
+import { BookOpen, LogOut, User, Download, Upload, FileText, Cloud, HardDrive, ShieldAlert, Menu, X, Key, Eye, EyeOff, Lock, CheckCircle } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 interface NavbarProps {
   userEmail?: string;
   onExportExcel?: () => void;
+  onImportExcelCsv?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDownloadCsvTemplate?: () => void;
 }
 
-export function Navbar({ userEmail, onExportExcel }: NavbarProps) {
+export function Navbar({ userEmail, onExportExcel, onImportExcelCsv, onDownloadCsvTemplate }: NavbarProps) {
   const router = useRouter();
   const hasCloud = isSupabaseConfigured();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -67,7 +69,7 @@ export function Navbar({ userEmail, onExportExcel }: NavbarProps) {
           </Link>
 
           {/* Desktop Controls */}
-          <div className="hidden md:flex items-center gap-2.5">
+          <div className="hidden md:flex items-center gap-2">
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
               {hasCloud ? (
                 <>
@@ -83,6 +85,35 @@ export function Navbar({ userEmail, onExportExcel }: NavbarProps) {
             </div>
 
             <ThemeToggle />
+
+            {/* CSV Template Download Button */}
+            {onDownloadCsvTemplate && (
+              <button
+                onClick={onDownloadCsvTemplate}
+                className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition border border-slate-200 dark:border-slate-700"
+                title="Download sample CSV template for bulk patient uploads"
+              >
+                <FileText className="w-4 h-4 text-blue-500" />
+                <span>CSV Template</span>
+              </button>
+            )}
+
+            {/* Upload Excel / CSV Button */}
+            {onImportExcelCsv && (
+              <label
+                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-md transition cursor-pointer"
+                title="Upload Excel (.xlsx, .xls) or CSV file"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Upload Excel/CSV</span>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={onImportExcelCsv}
+                  className="hidden"
+                />
+              </label>
+            )}
 
             {/* Change Password Button for ALL Encoders & Users */}
             <button
@@ -108,7 +139,7 @@ export function Navbar({ userEmail, onExportExcel }: NavbarProps) {
             {onExportExcel && (
               <button
                 onClick={onExportExcel}
-                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-md transition"
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-md transition"
               >
                 <Download className="w-4 h-4" />
                 <span>Export Excel</span>
@@ -118,7 +149,7 @@ export function Navbar({ userEmail, onExportExcel }: NavbarProps) {
             {/* Prominent Logout Button */}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 px-3.5 py-2 rounded-xl text-xs font-bold transition"
+              className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 px-3 py-2 rounded-xl text-xs font-bold transition"
               title="Logout of Encoder Portal"
             >
               <LogOut className="w-4 h-4" />
@@ -159,6 +190,29 @@ export function Navbar({ userEmail, onExportExcel }: NavbarProps) {
                 <ShieldAlert className="w-4 h-4 text-emerald-500" />
                 <span>Admin Settings</span>
               </Link>
+            )}
+
+            {onDownloadCsvTemplate && (
+              <button
+                onClick={() => { onDownloadCsvTemplate(); setMobileMenuOpen(false); }}
+                className="flex items-center gap-2 w-full p-3 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold"
+              >
+                <FileText className="w-4 h-4 text-blue-500" />
+                <span>CSV Template</span>
+              </button>
+            )}
+
+            {onImportExcelCsv && (
+              <label className="flex items-center gap-2 w-full p-3 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer">
+                <Upload className="w-4 h-4" />
+                <span>Upload Excel/CSV</span>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={(e) => { onImportExcelCsv(e); setMobileMenuOpen(false); }}
+                  className="hidden"
+                />
+              </label>
             )}
 
             {onExportExcel && (
