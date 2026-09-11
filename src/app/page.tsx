@@ -18,7 +18,18 @@ interface RecordItem {
   amount: number | null;
   hci?: number | null;
   pf?: number | null;
+  encoderName?: string;
 }
+
+const deduplicateRecords = (items: RecordItem[]): RecordItem[] => {
+  const seen = new Set<string>();
+  return items.filter(item => {
+    const key = `${(item.patientName || '').trim().toUpperCase()}||${(item.category || '').trim().toUpperCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
 export default function Dashboard() {
   const [currentDate, setCurrentDate] = useState('');
@@ -27,6 +38,7 @@ export default function Dashboard() {
   const [userEmail, setUserEmail] = useState('');
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [activeFilter, setActiveFilter] = useState('ALL');
+  const [dupError, setDupError] = useState('');
 
   // Form State (Amount input removed as requested)
   const [category, setCategory] = useState('ADMISSION');
@@ -102,11 +114,12 @@ export default function Dashboard() {
   };
 
   const loadSavedRecords = async (dateKey: string) => {
-    // 1. Instant local-first rendering (0ms delay)
+    // 1. Instant local-first rendering (0ms delay) with deduplication
     const localData = localStorage.getItem(`philhealth_recs_${dateKey}`);
     if (localData) {
       try {
-        setRecords(JSON.parse(localData));
+        const parsed = JSON.parse(localData);
+        setRecords(deduplicateRecords(parsed));
       } catch (e) {
         setRecords([]);
       }
@@ -131,10 +144,12 @@ export default function Dashboard() {
             icd: r.icd_code,
             amount: r.amount,
             hci: r.hci_amount,
-            pf: r.pf_amount
+            pf: r.pf_amount,
+            encoderName: r.encoder_name || encoder || 'System'
           }));
-          setRecords(cloudRecords);
-          localStorage.setItem(`philhealth_recs_${dateKey}`, JSON.stringify(cloudRecords));
+          const cleanCloud = deduplicateRecords(cloudRecords);
+          setRecords(cleanCloud);
+          localStorage.setItem(`philhealth_recs_${dateKey}`, JSON.stringify(cleanCloud));
         }
       } catch (e) {}
     }
@@ -147,7 +162,22 @@ export default function Dashboard() {
 
   const handleAddRecord = async (e: React.FormEvent) => {
     e.preventDefault();
+    setDupError('');
     if (!patientName.trim()) return;
+
+    const cleanPatient = patientName.trim().toUpperCase();
+    const cleanCategory = category.trim().toUpperCase();
+
+    // Check for Duplicate Patient Entry under same section
+    const isDuplicate = records.some(r => 
+      r.patientName.trim().toUpperCase() === cleanPatient && 
+      r.category.trim().toUpperCase() === cleanCategory
+    );
+
+    if (isDuplicate) {
+      setDupError(`Duplicate Entry Blocked: "${cleanPatient}" already exists under ${cleanCategory}.`);
+      return;
+    }
 
     // Auto calculate amount from ICD map if present
     const cleanIcd = icd.trim().toUpperCase();
@@ -155,16 +185,17 @@ export default function Dashboard() {
 
     const newRec: RecordItem = {
       id: String(Date.now()),
-      category,
-      patientName: patientName.trim().toUpperCase(),
+      category: cleanCategory,
+      patientName: cleanPatient,
       phicCat: phicCat.trim().toUpperCase(),
       icd: cleanIcd,
       amount: autoAmount,
       hci: hci !== '' ? parseFloat(hci) : null,
-      pf: pf !== '' ? parseFloat(pf) : null
+      pf: pf !== '' ? parseFloat(pf) : null,
+      encoderName: encoder || 'System'
     };
 
-    const updated = [...records, newRec];
+    const updated = deduplicateRecords([...records, newRec]);
     setRecords(updated);
 
     if (isSupabaseConfigured()) {
@@ -178,7 +209,7 @@ export default function Dashboard() {
           amount: newRec.amount,
           hci_amount: newRec.hci,
           pf_amount: newRec.pf,
-          encoder_name: encoder
+          encoder_name: newRec.encoderName
         });
       } catch (e) {}
     }
@@ -231,11 +262,11 @@ export default function Dashboard() {
     grid[1][28] = 'ANIMAL BITE';
     grid[1][33] = 'PAIN MANAGEMENT';
 
-    grid[2][0] = '#'; grid[2][1] = 'Patient Name'; grid[2][2] = 'Cat'; grid[2][3] = 'ICD/RVS'; grid[2][4] = 'Amount';
-    grid[2][6] = '#'; grid[2][7] = 'Patient Name'; grid[2][8] = 'Cat'; grid[2][9] = 'ICD/RVS';
-    grid[2][16] = '#'; grid[2][17] = 'Patient Name'; grid[2][18] = 'Cat'; grid[2][19] = 'ICD/RVS'; grid[2][20] = 'Amount';
-    grid[2][22] = '#'; grid[2][23] = 'Patient Name'; grid[2][24] = 'Cat'; grid[2][25] = 'ICD/RVS'; grid[2][26] = 'Amount';
-    grid[2][33] = '#'; grid[2][34] = 'Patient Name'; grid[2][35] = 'Cat'; grid[2][36] = 'ICD/RVS';
+    grid[2][0] = '#'; grid[2][1] = 'Patient Name'; grid[2][2] = 'Cat'; grid[2][3] = 'ICD/RVS'; grid[2][4] = 'Amount'; grid[2][5] = 'Encoder';
+    grid[2][6] = '#'; grid[2][7] = 'Patient Name'; grid[2][8] = 'Cat'; grid[2][9] = 'ICD/RVS'; grid[2][10] = 'Encoder';
+    grid[2][16] = '#'; grid[2][17] = 'Patient Name'; grid[2][18] = 'Cat'; grid[2][19] = 'ICD/RVS'; grid[2][20] = 'Amount'; grid[2][21] = 'Encoder';
+    grid[2][22] = '#'; grid[2][23] = 'Patient Name'; grid[2][24] = 'Cat'; grid[2][25] = 'ICD/RVS'; grid[2][26] = 'Amount'; grid[2][27] = 'Encoder';
+    grid[2][33] = '#'; grid[2][34] = 'Patient Name'; grid[2][35] = 'Cat'; grid[2][36] = 'ICD/RVS'; grid[2][37] = 'Encoder';
 
     const counters: Record<string, number> = {};
     Object.keys(catMap).forEach(c => counters[c] = 0);
@@ -251,6 +282,7 @@ export default function Dashboard() {
       grid[rowIdx][startCol + 2] = rec.phicCat;
       grid[rowIdx][startCol + 3] = rec.icd;
       if (rec.amount !== null) grid[rowIdx][startCol + 4] = rec.amount;
+      grid[rowIdx][startCol + 5] = rec.encoderName || encoder;
     });
 
     const ws = XLSX.utils.aoa_to_sheet(grid);
@@ -366,6 +398,12 @@ export default function Dashboard() {
               <Plus className="w-5 h-5 text-emerald-500" />
               <span>Add Logbook Entry</span>
             </h2>
+
+            {dupError && (
+              <div className="p-3 bg-rose-100 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs font-bold">
+                ⚠️ {dupError}
+              </div>
+            )}
 
             <form onSubmit={handleAddRecord} className="space-y-3 md:space-y-4">
               
@@ -484,13 +522,14 @@ export default function Dashboard() {
                       <th className="p-3 md:p-3.5">Patient Name</th>
                       <th className="p-3 md:p-3.5">Cat</th>
                       <th className="p-3 md:p-3.5">ICD10 / RVS</th>
+                      <th className="p-3 md:p-3.5">Encoder</th>
                       <th className="p-3 md:p-3.5 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium text-slate-700 dark:text-slate-200">
                     {filteredRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-slate-400 italic">
+                        <td colSpan={7} className="p-8 text-center text-slate-400 italic">
                           No logbook entries found for category: {activeFilter}
                         </td>
                       </tr>
@@ -502,6 +541,11 @@ export default function Dashboard() {
                           <td className="p-3 md:p-3.5 font-semibold text-slate-900 dark:text-white">{r.patientName}</td>
                           <td className="p-3 md:p-3.5 font-mono text-amber-600 dark:text-amber-400">{r.phicCat}</td>
                           <td className="p-3 md:p-3.5 font-mono text-blue-600 dark:text-blue-400">{r.icd || '-'}</td>
+                          <td className="p-3 md:p-3.5 font-semibold">
+                            <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[11px] border border-slate-200 dark:border-slate-700">
+                              👤 {r.encoderName || encoder || 'System'}
+                            </span>
+                          </td>
                           <td className="p-3 md:p-3.5 text-right">
                             <button
                               onClick={() => handleDeleteRecord(r.id)}
