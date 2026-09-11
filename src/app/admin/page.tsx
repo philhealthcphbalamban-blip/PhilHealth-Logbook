@@ -98,6 +98,11 @@ export default function AdminPage() {
       createdAt: new Date().toLocaleDateString()
     };
 
+    const passMap = JSON.parse(localStorage.getItem('philhealth_user_passwords') || '{}');
+    passMap[name.toLowerCase()] = password;
+    passMap[email.toLowerCase()] = password;
+    localStorage.setItem('philhealth_user_passwords', JSON.stringify(passMap));
+
     const updated = [...users, newUser];
     setUsers(updated);
     localStorage.setItem('philhealth_accounts', JSON.stringify(updated));

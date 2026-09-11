@@ -281,6 +281,12 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       } catch (e: any) {}
     }
 
+    const userEmail = typeof window !== 'undefined' ? localStorage.getItem('philhealth_user_email') || '' : '';
+    const passMap = JSON.parse(localStorage.getItem('philhealth_user_passwords') || '{}');
+    if (currentEncoder) passMap[currentEncoder.toLowerCase()] = newPassword;
+    if (userEmail) passMap[userEmail.toLowerCase()] = newPassword;
+    localStorage.setItem('philhealth_user_passwords', JSON.stringify(passMap));
+
     setMsg('Password successfully updated!');
     setNewPassword('');
     setConfirmPassword('');

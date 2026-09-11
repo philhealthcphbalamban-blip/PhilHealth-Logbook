@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { BookOpen, User, Lock, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { BookOpen, User, Lock, ArrowRight, ShieldCheck, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
@@ -13,39 +13,88 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleAuth = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
 
-    const activeUser = username.trim() || 'Encoder';
-    const generatedEmail = activeUser.toLowerCase().replace(/[^a-z0-9]/g, '') + '@hospital.com';
+    const activeUser = username.trim();
+    const enteredPass = password.trim();
+
+    if (!activeUser || !enteredPass) {
+      setErrorMsg('Please enter both your Username and Password.');
+      return;
+    }
+
+    setLoading(true);
+
+    const generatedEmail = activeUser.toLowerCase().includes('@')
+      ? activeUser.toLowerCase()
+      : activeUser.toLowerCase().replace(/[^a-z0-9]/g, '') + '@hospital.com';
+
     const isAdmin = activeUser.toLowerCase().includes('admin');
 
-    // 1. Instant local session storage set
+    // 1. Local Password Map verification
+    const passMap = JSON.parse(localStorage.getItem('philhealth_user_passwords') || '{}');
+    const storedPass = passMap[activeUser.toLowerCase()] || passMap[generatedEmail.toLowerCase()];
+
+    if (storedPass && storedPass !== enteredPass) {
+      setLoading(false);
+      setErrorMsg('❌ Incorrect password! Please enter your valid account password.');
+      return;
+    }
+
+    // 2. Cloud Authentication if Supabase is enabled
+    if (isSupabaseConfigured()) {
+      try {
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
+          email: generatedEmail,
+          password: enteredPass,
+        });
+
+        if (signInErr) {
+          // If credentials don't match existing account in Supabase
+          if (signInErr.message.toLowerCase().includes('invalid login credentials') || signInErr.status === 400) {
+            // Attempt auto signup for fresh initial account
+            if (!storedPass) {
+              const { error: signUpErr } = await supabase.auth.signUp({
+                email: generatedEmail,
+                password: enteredPass,
+                options: {
+                  data: { encoder_name: activeUser },
+                },
+              });
+              if (signUpErr && signUpErr.message.toLowerCase().includes('already registered')) {
+                setLoading(false);
+                setErrorMsg('❌ Incorrect password! Please enter the correct password.');
+                return;
+              }
+            } else {
+              setLoading(false);
+              setErrorMsg('❌ Incorrect password! Please check your credentials.');
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        // Fallthrough if network issue
+      }
+    }
+
+    // 3. Save initial password to local map if new account
+    if (!storedPass) {
+      passMap[activeUser.toLowerCase()] = enteredPass;
+      passMap[generatedEmail.toLowerCase()] = enteredPass;
+      localStorage.setItem('philhealth_user_passwords', JSON.stringify(passMap));
+    }
+
+    // 4. Save Session Credentials & Redirect
     localStorage.setItem('philhealth_encoder', activeUser);
     localStorage.setItem('philhealth_user_email', generatedEmail);
     localStorage.setItem('philhealth_user_role', isAdmin ? 'ADMIN' : 'ENCODER');
 
-    // 2. Instant direct hard redirect (0ms latency, zero delay)
     window.location.href = '/';
-
-    // 3. Non-blocking background sync with Supabase
-    if (isSupabaseConfigured()) {
-      supabase.auth.signInWithPassword({
-        email: generatedEmail,
-        password: password || 'default123',
-      }).then(({ error: signInErr }) => {
-        if (signInErr) {
-          supabase.auth.signUp({
-            email: generatedEmail,
-            password: password || 'default123',
-            options: {
-              data: { encoder_name: activeUser },
-            },
-          });
-        }
-      }).catch(() => {});
-    }
   };
 
   return (
@@ -74,6 +123,13 @@ export default function LoginPage() {
             PhilHealth Endorsement Data Entry & Daily Logbook
           </p>
         </div>
+
+        {errorMsg && (
+          <div className="p-3.5 bg-rose-100 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-500" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
         <form onSubmit={handleAuth} className="space-y-4">
           
@@ -126,7 +182,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-900/20 transition flex items-center justify-center gap-2 text-sm md:text-base mt-2"
           >
-            {loading ? 'Logging in...' : 'Sign In'}
+            {loading ? 'Verifying Password...' : 'Sign In'}
             <ArrowRight className="w-5 h-5" />
           </button>
         </form>
