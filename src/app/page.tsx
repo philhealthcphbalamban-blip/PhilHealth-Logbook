@@ -238,35 +238,37 @@ export default function Dashboard() {
   const exportExcel = () => {
     const catMap: Record<string, number> = {
       'ADMISSION': 0,
-      'MINOR (ER)': 6,
-      'MINOR (OPD)': 11,
-      'DENTAL': 16,
-      'OECB': 22,
-      'ANIMAL BITE': 28,
-      'PAIN MANAGEMENT': 33
+      'MINOR (ER)': 5,
+      'MINOR (OPD)': 10,
+      'DENTAL': 15,
+      'OECB': 20,
+      'ANIMAL BITE': 25,
+      'PAIN MANAGEMENT': 30
     };
 
     const wb = XLSX.utils.book_new();
     const grid: any[][] = [];
-    for (let r = 0; r < 100; r++) grid.push(new Array(40).fill(null));
+    for (let r = 0; r < 100; r++) grid.push(new Array(36).fill(null));
 
     grid[0][2] = 'Employee:';
     grid[0][3] = encoder;
-    grid[0][11] = 'OUTPATIENT';
+    grid[0][10] = 'OUTPATIENT';
 
-    grid[1][1] = 'ADMISSION';
-    grid[1][6] = 'MINOR (ER)';
-    grid[1][11] = 'MINOR (OPD)';
-    grid[1][16] = 'DENTAL';
-    grid[1][22] = 'OECB';
-    grid[1][28] = 'ANIMAL BITE';
-    grid[1][33] = 'PAIN MANAGEMENT';
+    grid[1][0] = 'ADMISSION';
+    grid[1][5] = 'MINOR (ER)';
+    grid[1][10] = 'MINOR (OPD)';
+    grid[1][15] = 'DENTAL';
+    grid[1][20] = 'OECB';
+    grid[1][25] = 'ANIMAL BITE';
+    grid[1][30] = 'PAIN MANAGEMENT';
 
-    grid[2][0] = '#'; grid[2][1] = 'Patient Name'; grid[2][2] = 'Cat'; grid[2][3] = 'ICD/RVS'; grid[2][4] = 'Amount'; grid[2][5] = 'Encoder';
-    grid[2][6] = '#'; grid[2][7] = 'Patient Name'; grid[2][8] = 'Cat'; grid[2][9] = 'ICD/RVS'; grid[2][10] = 'Encoder';
-    grid[2][16] = '#'; grid[2][17] = 'Patient Name'; grid[2][18] = 'Cat'; grid[2][19] = 'ICD/RVS'; grid[2][20] = 'Amount'; grid[2][21] = 'Encoder';
-    grid[2][22] = '#'; grid[2][23] = 'Patient Name'; grid[2][24] = 'Cat'; grid[2][25] = 'ICD/RVS'; grid[2][26] = 'Amount'; grid[2][27] = 'Encoder';
-    grid[2][33] = '#'; grid[2][34] = 'Patient Name'; grid[2][35] = 'Cat'; grid[2][36] = 'ICD/RVS'; grid[2][37] = 'Encoder';
+    grid[2][0] = '#'; grid[2][1] = 'Patient Name'; grid[2][2] = 'Cat'; grid[2][3] = 'ICD/RVS'; grid[2][4] = 'Encoder';
+    grid[2][5] = '#'; grid[2][6] = 'Patient Name'; grid[2][7] = 'Cat'; grid[2][8] = 'ICD/RVS'; grid[2][9] = 'Encoder';
+    grid[2][10] = '#'; grid[2][11] = 'Patient Name'; grid[2][12] = 'Cat'; grid[2][13] = 'ICD/RVS'; grid[2][14] = 'Encoder';
+    grid[2][15] = '#'; grid[2][16] = 'Patient Name'; grid[2][17] = 'Cat'; grid[2][18] = 'ICD/RVS'; grid[2][19] = 'Encoder';
+    grid[2][20] = '#'; grid[2][21] = 'Patient Name'; grid[2][22] = 'Cat'; grid[2][23] = 'ICD/RVS'; grid[2][24] = 'Encoder';
+    grid[2][25] = '#'; grid[2][26] = 'Patient Name'; grid[2][27] = 'Cat'; grid[2][28] = 'ICD/RVS'; grid[2][29] = 'Encoder';
+    grid[2][30] = '#'; grid[2][31] = 'Patient Name'; grid[2][32] = 'Cat'; grid[2][33] = 'ICD/RVS'; grid[2][34] = 'Encoder';
 
     const counters: Record<string, number> = {};
     Object.keys(catMap).forEach(c => counters[c] = 0);
@@ -281,8 +283,7 @@ export default function Dashboard() {
       grid[rowIdx][startCol + 1] = rec.patientName;
       grid[rowIdx][startCol + 2] = rec.phicCat;
       grid[rowIdx][startCol + 3] = rec.icd;
-      if (rec.amount !== null) grid[rowIdx][startCol + 4] = rec.amount;
-      grid[rowIdx][startCol + 5] = rec.encoderName || encoder;
+      grid[rowIdx][startCol + 4] = rec.encoderName || encoder;
     });
 
     const ws = XLSX.utils.aoa_to_sheet(grid);
