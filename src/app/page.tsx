@@ -578,6 +578,8 @@ export default function Dashboard() {
     document.body.removeChild(link);
   };
 
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+
   const filteredRecords = records.filter(r => {
     const matchesCategory = activeFilter === 'ALL' || r.category === activeFilter;
     const q = searchQuery.trim().toLowerCase();
@@ -591,10 +593,14 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950/70 text-slate-900 dark:text-slate-100 pb-12 transition-colors relative overflow-hidden backdrop-blur-[2px] md:pl-20">
+    <div className={`min-h-screen bg-slate-50/70 dark:bg-slate-950/70 text-slate-900 dark:text-slate-100 pb-12 transition-all duration-300 relative overflow-hidden backdrop-blur-[2px] ${
+      isSidebarExpanded ? 'md:pl-64' : 'md:pl-20'
+    }`}>
       
       {/* Expandable Animated Sidebar Navigation */}
       <Sidebar
+        isExpanded={isSidebarExpanded}
+        onToggleExpand={() => setIsSidebarExpanded(!isSidebarExpanded)}
         currentEncoder={encoder}
         userRole={userRole}
         userAvatar={userAvatar}

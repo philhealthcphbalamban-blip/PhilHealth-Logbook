@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 
 interface SidebarProps {
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
   currentEncoder: string;
   userRole: string;
   userAvatar: string;
@@ -22,6 +24,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({
+  isExpanded = false,
+  onToggleExpand,
   currentEncoder,
   userRole,
   userAvatar,
@@ -35,12 +39,14 @@ export function Sidebar({
   onOpenAvatarModal,
   onLogout
 }: SidebarProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const activeExpanded = onToggleExpand ? isExpanded : internalExpanded;
+  const handleToggle = onToggleExpand || (() => setInternalExpanded(!internalExpanded));
 
   return (
     <aside
       className={`fixed top-0 left-0 z-40 h-screen bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl border-r border-slate-800/80 text-white transition-all duration-300 ease-in-out flex flex-col justify-between shadow-2xl no-print hidden md:flex ${
-        isExpanded ? 'w-64' : 'w-20'
+        activeExpanded ? 'w-64' : 'w-20'
       }`}
     >
       {/* Top Header & Brand */}
@@ -54,7 +60,7 @@ export function Sidebar({
                 className="w-full h-full object-contain rounded-xl"
               />
             </div>
-            {isExpanded && (
+            {activeExpanded && (
               <div className="animate-fade-in whitespace-nowrap">
                 <h1 className="font-extrabold text-sm text-white tracking-tight leading-none">
                   PhilHealth
@@ -68,11 +74,11 @@ export function Sidebar({
 
           {/* Toggle Expand / Collapse Button */}
           <button
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={handleToggle}
             className="p-1.5 bg-slate-800/80 hover:bg-emerald-600 text-slate-300 hover:text-white rounded-xl transition shadow-md border border-slate-700/60 flex items-center justify-center flex-shrink-0"
-            title={isExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+            title={activeExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
           >
-            {isExpanded ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            {activeExpanded ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </button>
         </div>
 
@@ -85,7 +91,7 @@ export function Sidebar({
             title="Dashboard Overview"
           >
             <LayoutDashboard className="w-5 h-5 flex-shrink-0 text-emerald-400 group-hover:scale-110 transition" />
-            {isExpanded && <span className="truncate">Dashboard</span>}
+            {activeExpanded && <span className="truncate">Dashboard</span>}
           </button>
 
           {/* Add Entry Action Button */}
@@ -95,7 +101,7 @@ export function Sidebar({
             title="Add New Patient Logbook Entry"
           >
             <PlusCircle className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition" />
-            {isExpanded && <span className="truncate">Add Patient Entry</span>}
+            {activeExpanded && <span className="truncate">Add Patient Entry</span>}
           </button>
 
           <div className="pt-2 border-t border-slate-800/60 my-2"></div>
@@ -107,7 +113,7 @@ export function Sidebar({
             title="Print Official Endorsement Sheet"
           >
             <Printer className="w-5 h-5 flex-shrink-0 text-indigo-400 group-hover:scale-110 transition" />
-            {isExpanded && <span className="truncate">Print Sheet</span>}
+            {activeExpanded && <span className="truncate">Print Sheet</span>}
           </button>
 
           {/* Analytics & Summary */}
@@ -117,7 +123,7 @@ export function Sidebar({
             title="View Analytics & Monthly Claims Charts"
           >
             <BarChart3 className="w-5 h-5 flex-shrink-0 text-purple-400 group-hover:scale-110 transition" />
-            {isExpanded && <span className="truncate">Analytics Summary</span>}
+            {activeExpanded && <span className="truncate">Analytics Summary</span>}
           </button>
 
           {/* Upload Excel / CSV */}
@@ -126,7 +132,7 @@ export function Sidebar({
             title="Upload Excel or CSV Patient File"
           >
             <Upload className="w-5 h-5 flex-shrink-0 text-blue-400 group-hover:scale-110 transition" />
-            {isExpanded && <span className="truncate">Upload Excel/CSV</span>}
+            {activeExpanded && <span className="truncate">Upload Excel/CSV</span>}
             <input
               type="file"
               accept=".xlsx, .xls, .csv"
@@ -142,7 +148,7 @@ export function Sidebar({
             title="Export Excel (.xlsx)"
           >
             <Download className="w-5 h-5 flex-shrink-0 text-emerald-400 group-hover:scale-110 transition" />
-            {isExpanded && <span className="truncate">Export Excel</span>}
+            {activeExpanded && <span className="truncate">Export Excel</span>}
           </button>
 
           {/* Change Password */}
@@ -152,7 +158,7 @@ export function Sidebar({
             title="Change Account Password"
           >
             <Key className="w-5 h-5 flex-shrink-0 text-amber-400 group-hover:scale-110 transition" />
-            {isExpanded && <span className="truncate">Change Password</span>}
+            {activeExpanded && <span className="truncate">Change Password</span>}
           </button>
 
           {/* Admin Settings (Admin Only) */}
@@ -163,7 +169,7 @@ export function Sidebar({
               title="Admin Portal Settings"
             >
               <ShieldAlert className="w-5 h-5 flex-shrink-0 text-rose-400 group-hover:scale-110 transition" />
-              {isExpanded && <span className="truncate">Admin Portal</span>}
+              {activeExpanded && <span className="truncate">Admin Portal</span>}
             </Link>
           )}
 
@@ -177,7 +183,7 @@ export function Sidebar({
         <button
           onClick={onOpenAvatarModal}
           className={`w-full flex items-center gap-3 p-2 rounded-2xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 transition text-left group ${
-            isExpanded ? 'justify-start' : 'justify-center'
+            activeExpanded ? 'justify-start' : 'justify-center'
           }`}
           title="Click to change profile picture"
         >
@@ -193,7 +199,7 @@ export function Sidebar({
             </div>
           )}
 
-          {isExpanded && (
+          {activeExpanded && (
             <div className="overflow-hidden whitespace-nowrap">
               <p className="font-extrabold text-xs text-white truncate">
                 {currentEncoder}
@@ -209,12 +215,12 @@ export function Sidebar({
         <button
           onClick={onLogout}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-950/60 hover:text-rose-300 transition ${
-            isExpanded ? 'justify-start' : 'justify-center'
+            activeExpanded ? 'justify-start' : 'justify-center'
           }`}
           title="Logout"
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
-          {isExpanded && <span>Logout</span>}
+          {activeExpanded && <span>Logout</span>}
         </button>
 
       </div>
