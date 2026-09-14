@@ -44,6 +44,7 @@ export default function Dashboard() {
   // New Features State
   const [searchQuery, setSearchQuery] = useState('');
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Form State (Amount input removed as requested)
@@ -137,25 +138,25 @@ export default function Dashboard() {
       setRecords([]);
     }
 
-    // 2. Non-blocking cloud sync in background
     if (isSupabaseConfigured()) {
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('records')
           .select('*')
-          .eq('date_key', dateKey);
+          .eq('date_key', dateKey)
+          .order('created_at', { ascending: true });
 
-        if (data && data.length > 0) {
-          const cloudRecords = data.map(r => ({
-            id: r.id,
-            category: r.category,
-            patientName: r.patient_name,
-            phicCat: r.phic_cat,
-            icd: r.icd_code,
-            amount: r.amount,
-            hci: r.hci_amount,
-            pf: r.pf_amount,
-            encoderName: r.encoder_name || encoder || 'System'
+        if (!error && data && data.length > 0) {
+          const cloudRecords: RecordItem[] = data.map((d: any) => ({
+            id: d.id || String(Date.now()),
+            category: d.category,
+            patientName: d.patient_name,
+            phicCat: d.phic_cat,
+            icd: d.icd_code,
+            amount: d.amount,
+            hci: d.hci_amount,
+            pf: d.pf_amount,
+            encoderName: d.encoder_name
           }));
           const cleanCloud = deduplicateRecords(cloudRecords);
           setRecords(cleanCloud);
@@ -179,6 +180,7 @@ export default function Dashboard() {
     setHci(rec.hci !== undefined && rec.hci !== null ? String(rec.hci) : '');
     setPf(rec.pf !== undefined && rec.pf !== null ? String(rec.pf) : '');
     setDupError('');
+    setShowAddModal(true);
   };
 
   const handleCancelEdit = () => {
@@ -188,6 +190,7 @@ export default function Dashboard() {
     setHci('');
     setPf('');
     setDupError('');
+    setShowAddModal(false);
   };
 
   const handleAddRecord = async (e: React.FormEvent) => {
@@ -668,144 +671,174 @@ export default function Dashboard() {
 
         </div>
 
-        {/* Main Grid: Data Entry & Table View (Responsive Mobile/Tablet/Desktop) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-
-          {/* Logbook Form */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm space-y-4">
-            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                {editingId ? (
-                  <>
-                    <Pencil className="w-5 h-5 text-blue-500 animate-pulse" />
-                    <span>Edit Patient Entry</span>
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-5 h-5 text-emerald-500" />
-                    <span>Add Logbook Entry</span>
-                  </>
-                )}
-              </div>
-              {editingId && (
+        {/* Add / Edit Patient Entry Modal Pop-up */}
+        {showAddModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 relative z-10 animate-scale-up">
+              
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2.5 rounded-2xl ${editingId ? 'bg-blue-100 dark:bg-blue-950/80 text-blue-600' : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600'}`}>
+                    {editingId ? <Pencil className="w-5 h-5 animate-pulse" /> : <Plus className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+                      {editingId ? 'Edit Patient Entry' : 'Add Logbook Entry'}
+                    </h3>
+                    <p className="text-xs text-slate-400 font-bold">
+                      {currentDate} • Hospital Endorsement
+                    </p>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={handleCancelEdit}
-                  className="text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold rounded-lg transition"
+                  className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 rounded-xl transition"
                 >
-                  Cancel
+                  <X className="w-5 h-5" />
                 </button>
-              )}
-            </h2>
-
-            {dupError && (
-              <div className="p-3 bg-rose-100 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs font-bold">
-                ⚠️ {dupError}
-              </div>
-            )}
-
-            <form onSubmit={handleAddRecord} className="space-y-3 md:space-y-4">
-              
-              <div>
-                <label className="block text-[11px] md:text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                  Section Category
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 md:py-2.5 text-xs md:text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
-                >
-                  <option value="ADMISSION">ADMISSION</option>
-                  <option value="MINOR (ER)">MINOR (ER)</option>
-                  <option value="MINOR (OPD)">MINOR (OPD)</option>
-                  <option value="DENTAL">DENTAL</option>
-                  <option value="OECB">OECB</option>
-                  <option value="ANIMAL BITE">ANIMAL BITE</option>
-                  <option value="PAIN MANAGEMENT">PAIN MANAGEMENT</option>
-                </select>
               </div>
 
-              <div>
-                <label className="block text-[11px] md:text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                  Patient Name (LAST, FIRST MIDDLE)
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={patientName}
-                  onChange={(e) => setPatientName(e.target.value)}
-                  placeholder="e.g. DELA CRUZ, JUAN"
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 md:py-2.5 text-xs md:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] md:text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                  PHIC Membership (Cat)
-                </label>
-                <input
-                  type="text"
-                  list="membershipList"
-                  required
-                  value={phicCat}
-                  onChange={(e) => setPhicCat(e.target.value)}
-                  placeholder="e.g. PR-M, SC-M, POS-FI-D"
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 md:py-2.5 text-xs md:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
-                />
-                <datalist id="membershipList">
-                  {REF_MEMBERSHIPS.map(m => <option key={m} value={m} />)}
-                </datalist>
-              </div>
-
-              <div>
-                <label className="block text-[11px] md:text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                  ICD10 / RVS Code
-                </label>
-                <input
-                  type="text"
-                  value={icd}
-                  onChange={(e) => setIcd(e.target.value)}
-                  placeholder="e.g. 59513, NSD01, A09.9, or any new ICD10 code"
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 md:py-2.5 text-xs md:text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
-                />
-                {/* Quick-fill ICD Shortcuts */}
-                <div className="flex items-center gap-1 flex-wrap mt-2">
-                  <span className="text-[10px] uppercase font-bold text-slate-400">Quick:</span>
-                  {['NSD01', '59513', 'A09.9', 'K29.7', 'J06.9', 'I10'].map(code => (
-                    <button
-                      key={code}
-                      type="button"
-                      onClick={() => setIcd(code)}
-                      className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/80 text-slate-700 dark:text-slate-300 font-mono text-[11px] font-bold border border-slate-200 dark:border-slate-700 transition"
-                    >
-                      {code}
-                    </button>
-                  ))}
+              {dupError && (
+                <div className="p-3 bg-rose-100 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs font-bold">
+                  ⚠️ {dupError}
                 </div>
-              </div>
+              )}
 
+              <form onSubmit={handleAddRecord} className="space-y-4">
+                
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                    Section Category
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="ADMISSION">ADMISSION</option>
+                    <option value="MINOR (ER)">MINOR (ER)</option>
+                    <option value="MINOR (OPD)">MINOR (OPD)</option>
+                    <option value="DENTAL">DENTAL</option>
+                    <option value="OECB">OECB</option>
+                    <option value="ANIMAL BITE">ANIMAL BITE</option>
+                    <option value="PAIN MANAGEMENT">PAIN MANAGEMENT</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                    Patient Name (LAST, FIRST MIDDLE)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    value={patientName}
+                    onChange={(e) => setPatientName(e.target.value)}
+                    placeholder="e.g. DELA CRUZ, JUAN"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                    PHIC Membership (Cat)
+                  </label>
+                  <input
+                    type="text"
+                    list="membershipListModal"
+                    required
+                    value={phicCat}
+                    onChange={(e) => setPhicCat(e.target.value)}
+                    placeholder="e.g. PR-M, SC-M, POS-FI-D"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                  />
+                  <datalist id="membershipListModal">
+                    {REF_MEMBERSHIPS.map(m => <option key={m} value={m} />)}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                    ICD10 / RVS Code
+                  </label>
+                  <input
+                    type="text"
+                    value={icd}
+                    onChange={(e) => setIcd(e.target.value)}
+                    placeholder="e.g. 59513, NSD01, A09.9, or any new ICD10 code"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                  />
+                  <div className="flex items-center gap-1 flex-wrap mt-2">
+                    <span className="text-[10px] uppercase font-bold text-slate-400">Quick:</span>
+                    {['NSD01', '59513', 'A09.9', 'K29.7', 'J06.9', 'I10'].map(code => (
+                      <button
+                        key={code}
+                        type="button"
+                        onClick={() => setIcd(code)}
+                        className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/80 text-slate-700 dark:text-slate-300 font-mono text-[11px] font-bold border border-slate-200 dark:border-slate-700 transition"
+                      >
+                        {code}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="w-1/3 py-2.5 text-xs sm:text-sm font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={`w-2/3 py-2.5 font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs sm:text-sm text-white ${
+                      editingId 
+                        ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20' 
+                        : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20'
+                    }`}
+                  >
+                    {editingId ? <CheckCircle className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    <span>{editingId ? 'Update Entry' : 'Save Patient Entry'}</span>
+                  </button>
+                </div>
+
+              </form>
+
+            </div>
+          </div>
+        )}
+
+        {/* Logbook Data View (Full Width) */}
+        <div className="w-full space-y-3 md:space-y-4">
+          
+          {/* Top Bar: Add Logbook Entry Action & Search & Filter */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Prominent Add Entry Pop-up Trigger Button */}
               <button
-                type="submit"
-                className={`w-full py-2.5 md:py-3 font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs md:text-sm text-white ${
-                  editingId 
-                    ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20' 
-                    : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20'
-                }`}
+                type="button"
+                onClick={() => {
+                  setEditingId(null);
+                  setPatientName('');
+                  setIcd('');
+                  setHci('');
+                  setPf('');
+                  setDupError('');
+                  setShowAddModal(true);
+                }}
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-2xl shadow-lg shadow-emerald-900/20 flex items-center gap-2 text-xs md:text-sm transition transform hover:scale-[1.02] active:scale-[0.98]"
               >
-                {editingId ? <CheckCircle className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                <span>{editingId ? 'Update Record' : 'Save Entry'}</span>
+                <Plus className="w-5 h-5" />
+                <span>Add Logbook Entry</span>
               </button>
 
-            </form>
-          </div>
-
-          {/* Logbook Data View */}
-          <div className="lg:col-span-2 space-y-3 md:space-y-4">
-            
-            {/* Search & Filter Bar */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               {/* Filter Tabs */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
                 {['ALL', 'ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT'].map((cat) => (
                   <button
                     key={cat}
@@ -820,6 +853,7 @@ export default function Dashboard() {
                   </button>
                 ))}
               </div>
+            </div>
 
               {/* Global Search Bar */}
               <div className="relative min-w-[200px] sm:w-64">
@@ -913,9 +947,7 @@ export default function Dashboard() {
 
           </div>
 
-        </div>
-
-      </main>
+        </main>
 
       {/* Analytics Modal */}
       <AnalyticsModal 
