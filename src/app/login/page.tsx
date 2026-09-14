@@ -128,15 +128,15 @@ export default function LoginPage() {
         <ThemeToggle />
       </div>
 
-      {/* Main Login Card - Simplified (Username + Password only) */}
-      <div className="max-w-md w-full mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-6 my-auto relative z-10">
+      {/* Main Login Card - Animated Spring Entrance */}
+      <div className="max-w-md w-full mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-6 my-auto relative z-10 animate-scale-up transform transition-all duration-300 hover:shadow-emerald-500/10">
         
         <div className="text-center space-y-2">
-          <div className="inline-flex p-2 bg-white dark:bg-slate-800 rounded-full shadow-md border border-slate-200 dark:border-slate-700 mb-1">
+          <div className="inline-flex p-2 bg-white dark:bg-slate-800 rounded-full shadow-md border border-slate-200 dark:border-slate-700 mb-1 transition-transform duration-300 hover:scale-105">
             <img
               src="/hospital-logo.png"
               alt="Cebu Provincial Hospital Balamban Logo"
-              className="w-20 h-20 sm:w-24 sm:h-24 object-contain"
+              className="w-20 h-20 sm:w-24 sm:h-24 object-contain animate-float"
             />
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
