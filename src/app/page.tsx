@@ -70,7 +70,10 @@ export default function Dashboard() {
     const savedEncoder = localStorage.getItem('philhealth_encoder') || 'Juvy';
     const savedEmail = localStorage.getItem('philhealth_user_email') || '';
     const savedRole = localStorage.getItem('philhealth_user_role') || 'ENCODER';
-    const savedAvatar = localStorage.getItem(`philhealth_avatar_${savedEncoder.toLowerCase()}`) || '';
+    const savedAvatar = 
+      localStorage.getItem(`philhealth_avatar_${savedEncoder.trim().toLowerCase()}`) || 
+      localStorage.getItem('philhealth_avatar_user') || 
+      '';
     setEncoder(savedEncoder);
     setUserEmail(savedEmail);
     setUserRole(savedRole);
@@ -653,7 +656,14 @@ export default function Dashboard() {
         externalShowAvatarModal={showAvatarModal}
         onCloseAvatarModal={() => setShowAvatarModal(false)}
         onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        onAvatarChange={(newAvatar) => setUserAvatar(newAvatar)}
+        onAvatarChange={(newAvatar) => {
+          setUserAvatar(newAvatar);
+          try {
+            const enc = (encoder || localStorage.getItem('philhealth_encoder') || 'juvy').trim().toLowerCase();
+            localStorage.setItem(`philhealth_avatar_${enc}`, newAvatar);
+            localStorage.setItem('philhealth_avatar_user', newAvatar);
+          } catch(e) {}
+        }}
       />
 
       <main className="max-w-[98%] mx-auto px-2 sm:px-4 lg:px-6 pt-4 md:pt-6 space-y-4 md:space-y-6 relative z-10 no-print">

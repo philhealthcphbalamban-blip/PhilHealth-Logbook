@@ -59,7 +59,10 @@ export function Navbar({
   React.useEffect(() => {
     const encoder = localStorage.getItem('philhealth_encoder') || 'Encoder';
     const role = localStorage.getItem('philhealth_user_role') || 'ENCODER';
-    const avatar = localStorage.getItem(`philhealth_avatar_${encoder.toLowerCase()}`) || '';
+    const avatar = 
+      localStorage.getItem(`philhealth_avatar_${encoder.trim().toLowerCase()}`) ||
+      localStorage.getItem('philhealth_avatar_user') || 
+      '';
     setEncoderName(encoder);
     setUserRole(role);
     setUserAvatar(avatar);
@@ -69,8 +72,13 @@ export function Navbar({
 
   const handleSaveAvatar = (newAvatarUrl: string) => {
     setUserAvatar(newAvatarUrl);
-    if (encoderName) {
-      localStorage.setItem(`philhealth_avatar_${encoderName.toLowerCase()}`, newAvatarUrl);
+    try {
+      if (encoderName) {
+        localStorage.setItem(`philhealth_avatar_${encoderName.trim().toLowerCase()}`, newAvatarUrl);
+      }
+      localStorage.setItem('philhealth_avatar_user', newAvatarUrl);
+    } catch (err) {
+      console.error('Failed to write avatar to localStorage', err);
     }
     if (onAvatarChange) {
       onAvatarChange(newAvatarUrl);
@@ -468,18 +476,45 @@ function ProfileAvatarModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 8 * 1024 * 1024) {
-      alert('File size too large! Please choose an image smaller than 8MB.');
-      return;
-    }
-
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const base64 = evt.target?.result as string;
-      if (base64) {
-        setPreviewAvatar(base64);
-        setSelectedAvatar(base64);
-      }
+      const src = evt.target?.result as string;
+      if (!src) return;
+
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 350;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.85);
+          setPreviewAvatar(compressed);
+          setSelectedAvatar(compressed);
+        }
+      };
+      img.onerror = () => {
+        setPreviewAvatar(src);
+        setSelectedAvatar(src);
+      };
+      img.src = src;
     };
     reader.readAsDataURL(file);
   };
