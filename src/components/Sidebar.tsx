@@ -49,37 +49,39 @@ export function Sidebar({
         activeExpanded ? 'w-64' : 'w-20'
       }`}
     >
-      {/* Top Header & Brand */}
-      <div className="p-4 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-0.5 shadow-lg flex-shrink-0 flex items-center justify-center">
-              <img
-                src="/hospital-logo.png"
-                alt="Hospital Logo"
-                className="w-full h-full object-contain rounded-xl"
-              />
-            </div>
-            {activeExpanded && (
-              <div className="animate-fade-in whitespace-nowrap">
-                <h1 className="font-extrabold text-sm text-white tracking-tight leading-none">
-                  PhilHealth
-                </h1>
-                <p className="text-[11px] font-bold text-emerald-400 mt-0.5">
-                  Logbook Pro
-                </p>
-              </div>
-            )}
-          </div>
+      {/* Floating Toggle Expand / Collapse Button on Sidebar Border */}
+      <button
+        onClick={handleToggle}
+        className="absolute -right-3 top-6 z-50 p-1.5 bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-white rounded-full transition-all shadow-lg border border-slate-700 flex items-center justify-center cursor-pointer transform hover:scale-110"
+        title={activeExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+      >
+        {activeExpanded ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+      </button>
 
-          {/* Toggle Expand / Collapse Button */}
-          <button
+      {/* Top Header & Brand */}
+      <div className="p-3.5 space-y-6">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <div 
             onClick={handleToggle}
-            className="p-1.5 bg-slate-800/80 hover:bg-emerald-600 text-slate-300 hover:text-white rounded-xl transition shadow-md border border-slate-700/60 flex items-center justify-center flex-shrink-0"
-            title={activeExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+            className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-0.5 shadow-lg flex-shrink-0 flex items-center justify-center mx-auto md:mx-0 cursor-pointer group hover:scale-105 transition"
+            title="Click to toggle Sidebar"
           >
-            {activeExpanded ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          </button>
+            <img
+              src="/hospital-logo.png"
+              alt="Hospital Logo"
+              className="w-full h-full object-contain rounded-xl"
+            />
+          </div>
+          {activeExpanded && (
+            <div className="animate-fade-in whitespace-nowrap">
+              <h1 className="font-extrabold text-sm text-white tracking-tight leading-none">
+                PhilHealth
+              </h1>
+              <p className="text-[11px] font-bold text-emerald-400 mt-0.5">
+                Logbook Pro
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Navigation Menu Items */}
