@@ -20,6 +20,7 @@ interface NavbarProps {
   externalShowAvatarModal?: boolean;
   onCloseAvatarModal?: () => void;
   onToggleMobileMenu?: () => void;
+  onAvatarChange?: (newAvatarUrl: string) => void;
 }
 
 export function Navbar({ 
@@ -34,7 +35,8 @@ export function Navbar({
   onClosePasswordModal,
   externalShowAvatarModal = false,
   onCloseAvatarModal,
-  onToggleMobileMenu
+  onToggleMobileMenu,
+  onAvatarChange
 }: NavbarProps) {
   const router = useRouter();
   const hasCloud = isSupabaseConfigured();
@@ -69,6 +71,9 @@ export function Navbar({
     setUserAvatar(newAvatarUrl);
     if (encoderName) {
       localStorage.setItem(`philhealth_avatar_${encoderName.toLowerCase()}`, newAvatarUrl);
+    }
+    if (onAvatarChange) {
+      onAvatarChange(newAvatarUrl);
     }
   };
 
@@ -434,17 +439,6 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   );
 }
 
-const PRESET_AVATARS = [
-  'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80', // Female Doctor
-  'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&auto=format&fit=crop&q=80', // Male Doctor
-  'https://images.unsplash.com/photo-1594824813571-28a778853914?w=150&auto=format&fit=crop&q=80', // Female Nurse
-  'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=150&auto=format&fit=crop&q=80', // Medical Staff Male
-  'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=150&auto=format&fit=crop&q=80', // Healthcare Admin
-  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80', // Executive Female
-  'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80', // Executive Male
-  'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=150&auto=format&fit=crop&q=80', // Hospital Admin
-];
-
 function ProfileAvatarModal({
   isOpen,
   onClose,
@@ -461,14 +455,21 @@ function ProfileAvatarModal({
   const [selectedAvatar, setSelectedAvatar] = useState(currentAvatar || '');
   const [previewAvatar, setPreviewAvatar] = useState(currentAvatar || '');
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setSelectedAvatar(currentAvatar || '');
+      setPreviewAvatar(currentAvatar || '');
+    }
+  }, [isOpen, currentAvatar]);
+
   if (!isOpen) return null;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size too large! Please choose an image smaller than 5MB.');
+    if (file.size > 8 * 1024 * 1024) {
+      alert('File size too large! Please choose an image smaller than 8MB.');
       return;
     }
 
@@ -512,10 +513,10 @@ function ProfileAvatarModal({
               <img
                 src={previewAvatar}
                 alt={currentEncoder}
-                className="w-24 h-24 rounded-full object-cover border-4 border-emerald-500 shadow-xl mx-auto"
+                className="w-28 h-28 rounded-full object-cover border-4 border-emerald-500 shadow-xl mx-auto"
               />
             ) : (
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-extrabold text-3xl flex items-center justify-center shadow-xl mx-auto border-4 border-emerald-400/40">
+              <div className="w-28 h-28 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-extrabold text-4xl flex items-center justify-center shadow-xl mx-auto border-4 border-emerald-400/40">
                 {currentEncoder ? currentEncoder.charAt(0).toUpperCase() : 'U'}
               </div>
             )}
@@ -548,10 +549,10 @@ function ProfileAvatarModal({
         <div className="space-y-3">
           <label
             htmlFor="avatar-upload-input-btn"
-            className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-xs transition border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-3 px-4 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 font-bold rounded-2xl text-xs transition border border-emerald-200 dark:border-emerald-800 flex items-center justify-center gap-2 cursor-pointer shadow-sm"
           >
             <Upload className="w-4 h-4 text-emerald-500" />
-            <span>Upload Photo from Computer</span>
+            <span>Upload Photo from Device / Computer</span>
             <input
               id="avatar-upload-input-btn"
               type="file"
@@ -560,37 +561,6 @@ function ProfileAvatarModal({
               className="hidden"
             />
           </label>
-
-          {/* Preset Avatars Grid */}
-          <div>
-            <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-              Or Choose Preset Staff Avatar:
-            </span>
-            <div className="grid grid-cols-4 gap-3">
-              {PRESET_AVATARS.map((url, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setSelectedAvatar(url);
-                    setPreviewAvatar(url);
-                  }}
-                  className={`relative rounded-full overflow-hidden border-2 transition transform hover:scale-105 ${
-                    selectedAvatar === url
-                      ? 'border-emerald-500 ring-2 ring-emerald-500/40 scale-105'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-emerald-400'
-                  }`}
-                >
-                  <img src={url} alt={`Preset ${idx + 1}`} className="w-12 h-12 object-cover" />
-                  {selectedAvatar === url && (
-                    <div className="absolute inset-0 bg-emerald-600/40 flex items-center justify-center">
-                      <Check className="w-4 h-4 text-white font-bold" />
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Action Buttons */}

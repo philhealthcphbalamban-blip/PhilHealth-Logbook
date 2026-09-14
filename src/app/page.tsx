@@ -653,6 +653,7 @@ export default function Dashboard() {
         externalShowAvatarModal={showAvatarModal}
         onCloseAvatarModal={() => setShowAvatarModal(false)}
         onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        onAvatarChange={(newAvatar) => setUserAvatar(newAvatar)}
       />
 
       <main className="max-w-[98%] mx-auto px-2 sm:px-4 lg:px-6 pt-4 md:pt-6 space-y-4 md:space-y-6 relative z-10 no-print">
