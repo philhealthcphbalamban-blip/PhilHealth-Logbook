@@ -45,24 +45,53 @@ export default function AdminPage() {
   }, []);
 
   const loadUsers = () => {
+    let accounts: UserAccount[] = [];
     const localUsers = localStorage.getItem('philhealth_accounts');
     if (localUsers) {
       try {
-        setUsers(JSON.parse(localUsers));
-      } catch (e) {
-        initDefaultUsers();
-      }
-    } else {
-      initDefaultUsers();
+        accounts = JSON.parse(localUsers);
+      } catch (e) {}
     }
-  };
 
-  const initDefaultUsers = () => {
+    const passMap = JSON.parse(localStorage.getItem('philhealth_user_passwords') || '{}');
     const defaults: UserAccount[] = [
-      { id: '1', name: 'System Admin', email: 'admin@hospital.com', role: 'ADMIN', createdAt: new Date().toLocaleDateString() }
+      { id: '1', name: 'System Admin', email: 'admin@hospital.com', role: 'ADMIN', createdAt: new Date().toLocaleDateString() },
+      { id: '2', name: 'Juvy', email: 'juvy@hospital.com', role: 'ENCODER', createdAt: new Date().toLocaleDateString() },
+      { id: '3', name: 'Miko', email: 'miko@hospital.com', role: 'ENCODER', createdAt: new Date().toLocaleDateString() },
     ];
-    setUsers(defaults);
-    localStorage.setItem('philhealth_accounts', JSON.stringify(defaults));
+
+    const accountMap = new Map<string, UserAccount>();
+
+    // 1. Add default hospital staff accounts
+    defaults.forEach(d => accountMap.set(d.email.toLowerCase(), d));
+
+    // 2. Add existing accounts stored in philhealth_accounts
+    accounts.forEach(a => {
+      if (a && a.email) accountMap.set(a.email.toLowerCase(), a);
+    });
+
+    // 3. Add any account key from philhealth_user_passwords
+    Object.keys(passMap).forEach((key, idx) => {
+      let email = key.toLowerCase();
+      if (!email.includes('@')) {
+        email = email.replace(/[^a-z0-9]/g, '') + '@hospital.com';
+      }
+      if (!accountMap.has(email)) {
+        const userName = key.toUpperCase();
+        const isAdm = email.includes('admin');
+        accountMap.set(email, {
+          id: String(Date.now() + idx),
+          name: userName,
+          email: email,
+          role: isAdm ? 'ADMIN' : 'ENCODER',
+          createdAt: new Date().toLocaleDateString()
+        });
+      }
+    });
+
+    const merged = Array.from(accountMap.values());
+    setUsers(merged);
+    localStorage.setItem('philhealth_accounts', JSON.stringify(merged));
   };
 
   const handleCreateAccount = async (e: React.FormEvent) => {

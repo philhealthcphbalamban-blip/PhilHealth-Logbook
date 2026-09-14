@@ -90,7 +90,23 @@ export default function LoginPage() {
       localStorage.setItem('philhealth_user_passwords', JSON.stringify(passMap));
     }
 
-    // 4. Save Session Credentials & Redirect
+    // 4. Register into philhealth_accounts list so it appears in Admin Registered Accounts
+    try {
+      const existingAccounts: any[] = JSON.parse(localStorage.getItem('philhealth_accounts') || '[]');
+      const exists = existingAccounts.some(a => a && a.email && a.email.toLowerCase() === generatedEmail.toLowerCase());
+      if (!exists) {
+        existingAccounts.push({
+          id: String(Date.now()),
+          name: activeUser,
+          email: generatedEmail,
+          role: isAdmin ? 'ADMIN' : 'ENCODER',
+          createdAt: new Date().toLocaleDateString()
+        });
+        localStorage.setItem('philhealth_accounts', JSON.stringify(existingAccounts));
+      }
+    } catch (e) {}
+
+    // 5. Save Session Credentials & Redirect
     localStorage.setItem('philhealth_encoder', activeUser);
     localStorage.setItem('philhealth_user_email', generatedEmail);
     localStorage.setItem('philhealth_user_role', isAdmin ? 'ADMIN' : 'ENCODER');
