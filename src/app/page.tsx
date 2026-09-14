@@ -146,9 +146,9 @@ export default function Dashboard() {
           .eq('date_key', dateKey)
           .order('created_at', { ascending: true });
 
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           const cloudRecords: RecordItem[] = data.map((d: any) => ({
-            id: d.id || String(Date.now()),
+            id: String(d.id || Date.now()),
             category: d.category,
             patientName: d.patient_name,
             phicCat: d.phic_cat,
@@ -299,15 +299,25 @@ export default function Dashboard() {
       return;
     }
 
+    const recToDelete = records.find(r => r.id === id);
     const updated = records.filter(r => r.id !== id);
     setRecords(updated);
+    localStorage.setItem(`philhealth_recs_${currentDate}`, JSON.stringify(updated));
 
     if (isSupabaseConfigured()) {
       try {
+        // 1. Delete by ID in Supabase
         await supabase.from('records').delete().eq('id', id);
+
+        // 2. Dual-target delete by patient_name + category + date_key to guarantee cloud removal
+        if (recToDelete) {
+          await supabase.from('records').delete()
+            .eq('date_key', currentDate)
+            .eq('patient_name', recToDelete.patientName)
+            .eq('category', recToDelete.category);
+        }
       } catch (e) {}
     }
-    localStorage.setItem(`philhealth_recs_${currentDate}`, JSON.stringify(updated));
   };
 
   const exportExcel = () => {
