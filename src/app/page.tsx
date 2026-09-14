@@ -5,7 +5,7 @@ import { Navbar } from '@/components/Navbar';
 import { REF_MEMBERSHIPS, REF_ICD_MAP } from '@/lib/refData';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { 
-  Users, Calendar, Plus, Trash2, Sparkles, FolderOpen, RefreshCw, Search, Printer, BarChart3, Database, X, CheckCircle
+  Users, Calendar, Plus, Trash2, Sparkles, FolderOpen, RefreshCw, Search, Printer, BarChart3, Database, X, CheckCircle, Pencil
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -44,6 +44,7 @@ export default function Dashboard() {
   // New Features State
   const [searchQuery, setSearchQuery] = useState('');
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Form State (Amount input removed as requested)
   const [category, setCategory] = useState('ADMISSION');
@@ -169,6 +170,26 @@ export default function Dashboard() {
     loadSavedRecords(newDate);
   };
 
+  const handleStartEdit = (rec: RecordItem) => {
+    setEditingId(rec.id);
+    setCategory(rec.category);
+    setPatientName(rec.patientName);
+    setPhicCat(rec.phicCat);
+    setIcd(rec.icd || '');
+    setHci(rec.hci !== undefined && rec.hci !== null ? String(rec.hci) : '');
+    setPf(rec.pf !== undefined && rec.pf !== null ? String(rec.pf) : '');
+    setDupError('');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setPatientName('');
+    setIcd('');
+    setHci('');
+    setPf('');
+    setDupError('');
+  };
+
   const handleAddRecord = async (e: React.FormEvent) => {
     e.preventDefault();
     setDupError('');
@@ -176,8 +197,49 @@ export default function Dashboard() {
 
     const cleanPatient = patientName.trim().toUpperCase();
     const cleanCategory = category.trim().toUpperCase();
+    const cleanIcd = icd.trim().toUpperCase();
+    const autoAmount = REF_ICD_MAP[cleanIcd] !== undefined ? REF_ICD_MAP[cleanIcd] : null;
 
-    // Check for Duplicate Patient Entry under same section
+    if (editingId) {
+      // Edit / Update existing record mode
+      const updatedRecords = records.map(r => {
+        if (r.id === editingId) {
+          return {
+            ...r,
+            category: cleanCategory,
+            patientName: cleanPatient,
+            phicCat: phicCat.trim().toUpperCase(),
+            icd: cleanIcd,
+            amount: autoAmount,
+            hci: hci !== '' ? parseFloat(hci) : null,
+            pf: pf !== '' ? parseFloat(pf) : null,
+            encoderName: r.encoderName || encoder || 'System'
+          };
+        }
+        return r;
+      });
+
+      setRecords(updatedRecords);
+      localStorage.setItem(`philhealth_recs_${currentDate}`, JSON.stringify(updatedRecords));
+
+      if (isSupabaseConfigured()) {
+        try {
+          await supabase.from('records').update({
+            category: cleanCategory,
+            patient_name: cleanPatient,
+            phic_cat: phicCat.trim().toUpperCase(),
+            icd_code: cleanIcd,
+            hci_amount: hci !== '' ? parseFloat(hci) : null,
+            pf_amount: pf !== '' ? parseFloat(pf) : null
+          }).eq('id', editingId);
+        } catch (e) {}
+      }
+
+      handleCancelEdit();
+      return;
+    }
+
+    // New Entry Creation Mode: Check for Duplicate Patient Entry under same section
     const isDuplicate = records.some(r => 
       r.patientName.trim().toUpperCase() === cleanPatient && 
       r.category.trim().toUpperCase() === cleanCategory
@@ -187,10 +249,6 @@ export default function Dashboard() {
       setDupError(`Duplicate Entry Blocked: "${cleanPatient}" already exists under ${cleanCategory}.`);
       return;
     }
-
-    // Auto calculate amount from ICD map if present
-    const cleanIcd = icd.trim().toUpperCase();
-    const autoAmount = REF_ICD_MAP[cleanIcd] !== undefined ? REF_ICD_MAP[cleanIcd] : null;
 
     const newRec: RecordItem = {
       id: String(Date.now()),
@@ -615,9 +673,29 @@ export default function Dashboard() {
 
           {/* Logbook Form */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm space-y-4">
-            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <Plus className="w-5 h-5 text-emerald-500" />
-              <span>Add Logbook Entry</span>
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                {editingId ? (
+                  <>
+                    <Pencil className="w-5 h-5 text-blue-500 animate-pulse" />
+                    <span>Edit Patient Entry</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-5 h-5 text-emerald-500" />
+                    <span>Add Logbook Entry</span>
+                  </>
+                )}
+              </div>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold rounded-lg transition"
+                >
+                  Cancel
+                </button>
+              )}
             </h2>
 
             {dupError && (
@@ -708,10 +786,14 @@ export default function Dashboard() {
 
               <button
                 type="submit"
-                className="w-full py-2.5 md:py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs md:text-sm"
+                className={`w-full py-2.5 md:py-3 font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs md:text-sm text-white ${
+                  editingId 
+                    ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20' 
+                    : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20'
+                }`}
               >
-                <Plus className="w-4 h-4" />
-                <span>Save Entry</span>
+                {editingId ? <CheckCircle className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                <span>{editingId ? 'Update Record' : 'Save Entry'}</span>
               </button>
 
             </form>
@@ -790,23 +872,35 @@ export default function Dashboard() {
                             </span>
                           </td>
                           <td className="p-3 md:p-3.5 text-right">
-                            {isAdmin ? (
+                            <div className="flex items-center justify-end gap-1">
+                              {/* Edit Button - Available for BOTH Admin and Encoders */}
                               <button
-                                onClick={() => handleDeleteRecord(r.id)}
-                                className="p-1.5 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-lg transition"
-                                title="Delete patient entry (Admin Only)"
+                                onClick={() => handleStartEdit(r)}
+                                className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/60 rounded-lg transition"
+                                title="Edit patient entry"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Pencil className="w-4 h-4" />
                               </button>
-                            ) : (
-                              <button
-                                disabled
-                                className="p-1.5 text-slate-300 dark:text-slate-700 cursor-not-allowed rounded-lg"
-                                title="Only ADMIN users can delete patient entries"
-                              >
-                                <Trash2 className="w-4 h-4 opacity-40" />
-                              </button>
-                            )}
+
+                              {/* Delete Button - Admin Only */}
+                              {isAdmin ? (
+                                <button
+                                  onClick={() => handleDeleteRecord(r.id)}
+                                  className="p-1.5 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-lg transition"
+                                  title="Delete patient entry (Admin Only)"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  disabled
+                                  className="p-1.5 text-slate-300 dark:text-slate-700 cursor-not-allowed rounded-lg"
+                                  title="Only ADMIN users can delete patient entries"
+                                >
+                                  <Trash2 className="w-4 h-4 opacity-40" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
