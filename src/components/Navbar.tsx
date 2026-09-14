@@ -15,6 +15,10 @@ interface NavbarProps {
   onPrintSheet?: () => void;
   onOpenAnalytics?: () => void;
   onBackupSystem?: () => void;
+  externalShowPasswordModal?: boolean;
+  onClosePasswordModal?: () => void;
+  externalShowAvatarModal?: boolean;
+  onCloseAvatarModal?: () => void;
 }
 
 export function Navbar({ 
@@ -24,7 +28,11 @@ export function Navbar({
   onDownloadCsvTemplate,
   onPrintSheet,
   onOpenAnalytics,
-  onBackupSystem
+  onBackupSystem,
+  externalShowPasswordModal = false,
+  onClosePasswordModal,
+  externalShowAvatarModal = false,
+  onCloseAvatarModal
 }: NavbarProps) {
   const router = useRouter();
   const hasCloud = isSupabaseConfigured();
@@ -32,6 +40,14 @@ export function Navbar({
   const [isAdmin, setIsAdmin] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+
+  React.useEffect(() => {
+    if (externalShowPasswordModal) setShowPasswordModal(true);
+  }, [externalShowPasswordModal]);
+
+  React.useEffect(() => {
+    if (externalShowAvatarModal) setShowAvatarModal(true);
+  }, [externalShowAvatarModal]);
   const [encoderName, setEncoderName] = useState('Encoder');
   const [userRole, setUserRole] = useState('ENCODER');
   const [userAvatar, setUserAvatar] = useState('');
@@ -345,13 +361,19 @@ export function Navbar({
       {/* Change Password Modal accessible anywhere */}
       <ChangePasswordModal
         isOpen={showPasswordModal}
-        onClose={() => setShowPasswordModal(false)}
+        onClose={() => {
+          setShowPasswordModal(false);
+          if (onClosePasswordModal) onClosePasswordModal();
+        }}
       />
 
       {/* User Profile Avatar Customizer Modal */}
       <ProfileAvatarModal
         isOpen={showAvatarModal}
-        onClose={() => setShowAvatarModal(false)}
+        onClose={() => {
+          setShowAvatarModal(false);
+          if (onCloseAvatarModal) onCloseAvatarModal();
+        }}
         currentEncoder={encoderName}
         currentAvatar={userAvatar}
         onSaveAvatar={handleSaveAvatar}

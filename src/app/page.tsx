@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
+import { Sidebar } from '@/components/Sidebar';
 import { REF_MEMBERSHIPS, REF_ICD_MAP } from '@/lib/refData';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { 
@@ -37,6 +38,7 @@ export default function Dashboard() {
   const [encoder, setEncoder] = useState('Juvy');
   const [userRole, setUserRole] = useState('ENCODER');
   const [userEmail, setUserEmail] = useState('');
+  const [userAvatar, setUserAvatar] = useState('');
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [dupError, setDupError] = useState('');
@@ -45,6 +47,8 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Form State (Amount input removed as requested)
@@ -65,15 +69,27 @@ export default function Dashboard() {
     const savedEncoder = localStorage.getItem('philhealth_encoder') || 'Juvy';
     const savedEmail = localStorage.getItem('philhealth_user_email') || '';
     const savedRole = localStorage.getItem('philhealth_user_role') || 'ENCODER';
+    const savedAvatar = localStorage.getItem(`philhealth_avatar_${savedEncoder.toLowerCase()}`) || '';
     setEncoder(savedEncoder);
     setUserEmail(savedEmail);
     setUserRole(savedRole);
+    setUserAvatar(savedAvatar);
 
     fetchPastWorksheets();
     loadSavedRecords(todayStr);
   }, []);
 
   const isAdmin = userRole === 'ADMIN' || encoder.toLowerCase().includes('admin');
+
+  const handleLogout = () => {
+    localStorage.removeItem('philhealth_encoder');
+    localStorage.removeItem('philhealth_user_email');
+    localStorage.removeItem('philhealth_user_role');
+    if (isSupabaseConfigured()) {
+      supabase.auth.signOut().catch(() => {});
+    }
+    window.location.href = '/login';
+  };
 
   const handleDatePickerChange = (isoVal: string) => {
     if (!isoVal) return;
@@ -172,6 +188,15 @@ export default function Dashboard() {
   };
 
   const handleStartEdit = (rec: RecordItem) => {
+    const recEncoder = (rec.encoderName || 'System').trim().toLowerCase();
+    const currentEnc = (encoder || '').trim().toLowerCase();
+    const canEdit = isAdmin || recEncoder === currentEnc;
+
+    if (!canEdit) {
+      alert(`⚠️ Edit Restricted: Patient entry was encoded by "${rec.encoderName || 'another encoder'}". Only ${rec.encoderName || 'the original encoder'} or Admin can edit this record.`);
+      return;
+    }
+
     setEditingId(rec.id);
     setCategory(rec.category);
     setPatientName(rec.patientName);
@@ -565,8 +590,32 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950/70 text-slate-900 dark:text-slate-100 pb-12 transition-colors relative overflow-hidden backdrop-blur-[2px]">
+    <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950/70 text-slate-900 dark:text-slate-100 pb-12 transition-colors relative overflow-hidden backdrop-blur-[2px] md:pl-20">
       
+      {/* Expandable Animated Sidebar Navigation */}
+      <Sidebar
+        currentEncoder={encoder}
+        userRole={userRole}
+        userAvatar={userAvatar}
+        isAdmin={isAdmin}
+        onOpenAddModal={() => {
+          setEditingId(null);
+          setPatientName('');
+          setIcd('');
+          setHci('');
+          setPf('');
+          setDupError('');
+          setShowAddModal(true);
+        }}
+        onPrintSheet={handlePrintSheet}
+        onOpenAnalytics={() => setShowAnalyticsModal(true)}
+        onImportExcelCsv={handleFileUpload}
+        onExportExcel={exportExcel}
+        onOpenPasswordModal={() => setShowPasswordModal(true)}
+        onOpenAvatarModal={() => setShowAvatarModal(true)}
+        onLogout={handleLogout}
+      />
+
       {/* Background Ambient Parallax Floating Glow Orbs */}
       <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-500/10 dark:bg-emerald-500/5 rounded-full blur-3xl pointer-events-none animate-float"></div>
       <div className="absolute top-1/3 -right-32 w-96 h-96 bg-purple-500/10 dark:bg-purple-500/5 rounded-full blur-3xl pointer-events-none animate-float-reverse"></div>
@@ -589,6 +638,10 @@ export default function Dashboard() {
         onPrintSheet={handlePrintSheet}
         onOpenAnalytics={() => setShowAnalyticsModal(true)}
         onBackupSystem={handleBackupSystem}
+        externalShowPasswordModal={showPasswordModal}
+        onClosePasswordModal={() => setShowPasswordModal(false)}
+        externalShowAvatarModal={showAvatarModal}
+        onCloseAvatarModal={() => setShowAvatarModal(false)}
       />
 
       <main className="max-w-[98%] mx-auto px-2 sm:px-4 lg:px-6 pt-4 md:pt-6 space-y-4 md:space-y-6 relative z-10 no-print">
@@ -903,28 +956,44 @@ export default function Dashboard() {
                         </td>
                       </tr>
                     ) : (
-                      filteredRecords.map((r, idx) => (
-                        <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
-                          <td className="p-3 md:p-3.5 font-mono text-slate-400">{idx + 1}</td>
-                          <td className="p-3 md:p-3.5 font-bold text-emerald-600 dark:text-emerald-400">{r.category}</td>
-                          <td className="p-3 md:p-3.5 font-semibold text-slate-900 dark:text-white">{r.patientName}</td>
-                          <td className="p-3 md:p-3.5 font-mono text-amber-600 dark:text-amber-400">{r.phicCat}</td>
-                          <td className="p-3 md:p-3.5 font-mono text-blue-600 dark:text-blue-400">{r.icd || '-'}</td>
-                          <td className="p-3 md:p-3.5 font-semibold">
-                            <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[11px] border border-slate-200 dark:border-slate-700">
-                              👤 {r.encoderName || encoder || 'System'}
-                            </span>
-                          </td>
-                          <td className="p-3 md:p-3.5 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              {/* Edit Button - Available for BOTH Admin and Encoders */}
-                              <button
-                                onClick={() => handleStartEdit(r)}
-                                className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/60 rounded-lg transition"
-                                title="Edit patient entry"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </button>
+                      filteredRecords.map((r, idx) => {
+                        const recEncoder = (r.encoderName || 'System').trim().toLowerCase();
+                        const currentEnc = (encoder || '').trim().toLowerCase();
+                        const canEditRecord = isAdmin || recEncoder === currentEnc;
+
+                        return (
+                          <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                            <td className="p-3 md:p-3.5 font-mono text-slate-400">{idx + 1}</td>
+                            <td className="p-3 md:p-3.5 font-bold text-emerald-600 dark:text-emerald-400">{r.category}</td>
+                            <td className="p-3 md:p-3.5 font-semibold text-slate-900 dark:text-white">{r.patientName}</td>
+                            <td className="p-3 md:p-3.5 font-mono text-amber-600 dark:text-amber-400">{r.phicCat}</td>
+                            <td className="p-3 md:p-3.5 font-mono text-blue-600 dark:text-blue-400">{r.icd || '-'}</td>
+                            <td className="p-3 md:p-3.5 font-semibold">
+                              <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[11px] border border-slate-200 dark:border-slate-700">
+                                👤 {r.encoderName || encoder || 'System'}
+                              </span>
+                            </td>
+                            <td className="p-3 md:p-3.5 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                {/* Edit Button - Encoder Restricted */}
+                                {canEditRecord ? (
+                                  <button
+                                    onClick={() => handleStartEdit(r)}
+                                    className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/60 rounded-lg transition"
+                                    title="Edit patient entry"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    disabled
+                                    onClick={() => alert(`⚠️ Access Restricted: Patient entry encoded by ${r.encoderName}. Only ${r.encoderName} or Admin can edit this entry.`)}
+                                    className="p-1.5 text-slate-300 dark:text-slate-700 cursor-not-allowed rounded-lg opacity-40"
+                                    title={`Only encoder "${r.encoderName || 'System'}" can edit this record`}
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                )}
 
                               {/* Delete Button - Admin Only */}
                               {isAdmin ? (
@@ -947,8 +1016,9 @@ export default function Dashboard() {
                             </div>
                           </td>
                         </tr>
-                      ))
-                    )}
+                      );
+                    })
+                  )}
                   </tbody>
                 </table>
               </div>
