@@ -579,6 +579,7 @@ export default function Dashboard() {
   };
 
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const filteredRecords = records.filter(r => {
     const matchesCategory = activeFilter === 'ALL' || r.category === activeFilter;
@@ -601,6 +602,8 @@ export default function Dashboard() {
       <Sidebar
         isExpanded={isSidebarExpanded}
         onToggleExpand={() => setIsSidebarExpanded(!isSidebarExpanded)}
+        mobileOpen={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
         currentEncoder={encoder}
         userRole={userRole}
         userAvatar={userAvatar}
@@ -649,6 +652,7 @@ export default function Dashboard() {
         onClosePasswordModal={() => setShowPasswordModal(false)}
         externalShowAvatarModal={showAvatarModal}
         onCloseAvatarModal={() => setShowAvatarModal(false)}
+        onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
       />
 
       <main className="max-w-[98%] mx-auto px-2 sm:px-4 lg:px-6 pt-4 md:pt-6 space-y-4 md:space-y-6 relative z-10 no-print">

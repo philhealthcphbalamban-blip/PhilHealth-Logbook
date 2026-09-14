@@ -19,6 +19,7 @@ interface NavbarProps {
   onClosePasswordModal?: () => void;
   externalShowAvatarModal?: boolean;
   onCloseAvatarModal?: () => void;
+  onToggleMobileMenu?: () => void;
 }
 
 export function Navbar({ 
@@ -32,7 +33,8 @@ export function Navbar({
   externalShowPasswordModal = false,
   onClosePasswordModal,
   externalShowAvatarModal = false,
-  onCloseAvatarModal
+  onCloseAvatarModal,
+  onToggleMobileMenu
 }: NavbarProps) {
   const router = useRouter();
   const hasCloud = isSupabaseConfigured();
@@ -146,8 +148,15 @@ export function Navbar({
           <div className="flex items-center gap-2 md:hidden">
             <ThemeToggle />
             <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={() => {
+                if (onToggleMobileMenu) {
+                  onToggleMobileMenu();
+                } else {
+                  setMobileMenuOpen(!mobileMenuOpen);
+                }
+              }}
               className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
+              title="Open Navigation Menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
