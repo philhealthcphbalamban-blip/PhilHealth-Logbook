@@ -114,8 +114,8 @@ export function Navbar({
             </div>
           </Link>
 
-          {/* Desktop Controls */}
-          <div className="hidden md:flex items-center gap-2">
+          {/* Desktop Minimal Header Controls */}
+          <div className="hidden md:flex items-center gap-3">
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
               {hasCloud ? (
                 <>
@@ -129,6 +129,18 @@ export function Navbar({
                 </>
               )}
             </div>
+
+            {/* CSV Template Download Button */}
+            {onDownloadCsvTemplate && (
+              <button
+                onClick={onDownloadCsvTemplate}
+                className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold transition border border-slate-200 dark:border-slate-700"
+                title="Download sample CSV template for bulk patient uploads"
+              >
+                <FileText className="w-4 h-4 text-blue-500" />
+                <span>CSV Template</span>
+              </button>
+            )}
 
             <ThemeToggle />
 
@@ -154,90 +166,6 @@ export function Navbar({
                 {encoderName}
               </span>
             </button>
-
-            {/* Print Endorsement Sheet */}
-            {onPrintSheet && (
-              <button
-                onClick={onPrintSheet}
-                className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition border border-slate-200 dark:border-slate-700"
-                title="Print Official Daily Endorsement Sheet"
-              >
-                <Printer className="w-4 h-4 text-indigo-500" />
-                <span>Print Sheet</span>
-              </button>
-            )}
-
-            {/* Analytics Dashboard */}
-            {onOpenAnalytics && (
-              <button
-                onClick={onOpenAnalytics}
-                className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition border border-slate-200 dark:border-slate-700"
-                title="View Analytics & Monthly Claims Charts"
-              >
-                <BarChart3 className="w-4 h-4 text-purple-500" />
-                <span>Analytics</span>
-              </button>
-            )}
-
-            {/* CSV Template Download Button */}
-            {onDownloadCsvTemplate && (
-              <button
-                onClick={onDownloadCsvTemplate}
-                className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition border border-slate-200 dark:border-slate-700"
-                title="Download sample CSV template for bulk patient uploads"
-              >
-                <FileText className="w-4 h-4 text-blue-500" />
-                <span>CSV Template</span>
-              </button>
-            )}
-
-            {/* Upload Excel / CSV Button */}
-            {onImportExcelCsv && (
-              <label
-                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-md transition cursor-pointer"
-                title="Upload Excel (.xlsx, .xls) or CSV file"
-              >
-                <Upload className="w-4 h-4" />
-                <span>Upload Excel/CSV</span>
-                <input
-                  type="file"
-                  accept=".xlsx, .xls, .csv"
-                  onChange={onImportExcelCsv}
-                  className="hidden"
-                />
-              </label>
-            )}
-
-            {/* Change Password Button for ALL Encoders & Users */}
-            <button
-              onClick={() => setShowPasswordModal(true)}
-              className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition border border-slate-200 dark:border-slate-700"
-              title="Change your login password"
-            >
-              <Key className="w-4 h-4 text-amber-500" />
-              <span>Change Password</span>
-            </button>
-
-            {/* Admin Access Restriction: Render Admin Settings ONLY for Admin users */}
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition border border-slate-200 dark:border-slate-700"
-              >
-                <ShieldAlert className="w-4 h-4 text-emerald-500" />
-                <span>Admin Settings</span>
-              </Link>
-            )}
-
-            {onExportExcel && (
-              <button
-                onClick={onExportExcel}
-                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-md transition"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export Excel</span>
-              </button>
-            )}
 
             {/* Prominent Logout Button */}
             <button
