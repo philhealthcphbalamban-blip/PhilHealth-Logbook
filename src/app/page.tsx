@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { REF_MEMBERSHIPS, REF_ICD_MAP } from '@/lib/refData';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { 
-  Users, Calendar, Plus, Trash2, Sparkles, FolderOpen, RefreshCw, Search, Printer, BarChart3, Database, X, CheckCircle, Pencil
+  Users, Calendar, Plus, Trash2, Sparkles, FolderOpen, RefreshCw, Search, Printer, BarChart3, Database, X, CheckCircle, Pencil, Cloud, HardDrive, FileText
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -685,8 +686,39 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Encoder Name Info */}
-          <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
+          {/* Encoder Name Info & Desktop Toolbar Status */}
+          <div className="flex items-center gap-2.5 w-full md:w-auto justify-between md:justify-end flex-wrap">
+            
+            {/* Cloud Status Badge */}
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+              {isSupabaseConfigured() ? (
+                <>
+                  <Cloud className="w-4 h-4 text-emerald-500" />
+                  <span>Supabase Live</span>
+                </>
+              ) : (
+                <>
+                  <HardDrive className="w-4 h-4 text-amber-500" />
+                  <span>Local Storage</span>
+                </>
+              )}
+            </div>
+
+            {/* CSV Template Download Button */}
+            <button
+              onClick={downloadCsvTemplate}
+              className="hidden sm:flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold transition border border-slate-200 dark:border-slate-700"
+              title="Download sample CSV template for bulk patient uploads"
+            >
+              <FileText className="w-4 h-4 text-blue-500" />
+              <span>CSV Template</span>
+            </button>
+
+            {/* Theme Toggle */}
+            <div className="hidden md:block">
+              <ThemeToggle />
+            </div>
+
             <div className="bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs shadow-xs">
               <span className="text-slate-400 uppercase font-bold text-[10px] block">Encoder</span>
               <input
@@ -696,6 +728,7 @@ export default function Dashboard() {
                 className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none"
               />
             </div>
+
             <button
               onClick={fetchPastWorksheets}
               className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition"
@@ -703,6 +736,7 @@ export default function Dashboard() {
             >
               <RefreshCw className="w-4 h-4" />
             </button>
+
           </div>
 
         </div>
