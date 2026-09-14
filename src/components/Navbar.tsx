@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ThemeToggle } from './ThemeToggle';
-import { BookOpen, LogOut, User, Download, Upload, FileText, Cloud, HardDrive, ShieldAlert, Menu, X, Key, Eye, EyeOff, Lock, CheckCircle, Printer, BarChart3, Database } from 'lucide-react';
+import { BookOpen, LogOut, User, Download, Upload, FileText, Cloud, HardDrive, ShieldAlert, Menu, X, Key, Eye, EyeOff, Lock, CheckCircle, Printer, BarChart3, Database, Camera, Check, Trash2 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 interface NavbarProps {
@@ -31,13 +31,28 @@ export function Navbar({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [encoderName, setEncoderName] = useState('Encoder');
+  const [userRole, setUserRole] = useState('ENCODER');
+  const [userAvatar, setUserAvatar] = useState('');
 
   React.useEffect(() => {
-    const encoder = localStorage.getItem('philhealth_encoder') || '';
-    const role = localStorage.getItem('philhealth_user_role') || '';
+    const encoder = localStorage.getItem('philhealth_encoder') || 'Encoder';
+    const role = localStorage.getItem('philhealth_user_role') || 'ENCODER';
+    const avatar = localStorage.getItem(`philhealth_avatar_${encoder.toLowerCase()}`) || '';
+    setEncoderName(encoder);
+    setUserRole(role);
+    setUserAvatar(avatar);
     const isAdm = role === 'ADMIN' || encoder.toLowerCase().includes('admin');
     setIsAdmin(isAdm);
   }, []);
+
+  const handleSaveAvatar = (newAvatarUrl: string) => {
+    setUserAvatar(newAvatarUrl);
+    if (encoderName) {
+      localStorage.setItem(`philhealth_avatar_${encoderName.toLowerCase()}`, newAvatarUrl);
+    }
+  };
 
   const handleLogout = () => {
     // 1. Immediately purge session credentials
@@ -100,6 +115,29 @@ export function Navbar({
             </div>
 
             <ThemeToggle />
+
+            {/* User Profile Avatar Badge & Customizer */}
+            <button
+              type="button"
+              onClick={() => setShowAvatarModal(true)}
+              className="flex items-center gap-2 px-2.5 py-1 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition group cursor-pointer"
+              title="Click to view & change your User Profile Picture / Avatar"
+            >
+              {userAvatar ? (
+                <img
+                  src={userAvatar}
+                  alt={encoderName}
+                  className="w-7 h-7 rounded-full object-cover border-2 border-emerald-500 shadow-xs group-hover:scale-105 transition"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-extrabold text-xs flex items-center justify-center shadow-xs group-hover:scale-105 transition">
+                  {encoderName ? encoderName.charAt(0).toUpperCase() : 'U'}
+                </div>
+              )}
+              <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 hidden lg:inline-block">
+                {encoderName}
+              </span>
+            </button>
 
             {/* Print Endorsement Sheet */}
             {onPrintSheet && (
@@ -213,6 +251,14 @@ export function Navbar({
         {mobileMenuOpen && (
           <div className="md:hidden border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3 shadow-lg">
             <button
+              onClick={() => { setShowAvatarModal(true); setMobileMenuOpen(false); }}
+              className="flex items-center gap-2 w-full p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
+            >
+              <Camera className="w-4 h-4 text-emerald-500" />
+              <span>Change Profile Picture</span>
+            </button>
+
+            <button
               onClick={() => { setShowPasswordModal(true); setMobileMenuOpen(false); }}
               className="flex items-center gap-2 w-full p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
             >
@@ -300,6 +346,15 @@ export function Navbar({
       <ChangePasswordModal
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
+      />
+
+      {/* User Profile Avatar Customizer Modal */}
+      <ProfileAvatarModal
+        isOpen={showAvatarModal}
+        onClose={() => setShowAvatarModal(false)}
+        currentEncoder={encoderName}
+        currentAvatar={userAvatar}
+        onSaveAvatar={handleSaveAvatar}
       />
     </>
   );
@@ -451,6 +506,201 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+const PRESET_AVATARS = [
+  'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80', // Female Doctor
+  'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&auto=format&fit=crop&q=80', // Male Doctor
+  'https://images.unsplash.com/photo-1594824813571-28a778853914?w=150&auto=format&fit=crop&q=80', // Female Nurse
+  'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=150&auto=format&fit=crop&q=80', // Medical Staff Male
+  'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=150&auto=format&fit=crop&q=80', // Healthcare Admin
+  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80', // Executive Female
+  'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80', // Executive Male
+  'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=150&auto=format&fit=crop&q=80', // Hospital Admin
+];
+
+function ProfileAvatarModal({
+  isOpen,
+  onClose,
+  currentEncoder,
+  currentAvatar,
+  onSaveAvatar,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  currentEncoder: string;
+  currentAvatar: string;
+  onSaveAvatar: (newAvatarUrl: string) => void;
+}) {
+  const [selectedAvatar, setSelectedAvatar] = useState(currentAvatar || '');
+  const [previewAvatar, setPreviewAvatar] = useState(currentAvatar || '');
+
+  if (!isOpen) return null;
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size too large! Please choose an image smaller than 5MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const base64 = evt.target?.result as string;
+      if (base64) {
+        setPreviewAvatar(base64);
+        setSelectedAvatar(base64);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = () => {
+    onSaveAvatar(selectedAvatar);
+    onClose();
+  };
+
+  const handleRemoveAvatar = () => {
+    setSelectedAvatar('');
+    setPreviewAvatar('');
+    onSaveAvatar('');
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in animate-modal-backdrop no-print">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 relative animate-scale-up">
+        
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 rounded-xl transition"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="text-center space-y-2">
+          <div className="relative inline-block">
+            {previewAvatar ? (
+              <img
+                src={previewAvatar}
+                alt={currentEncoder}
+                className="w-24 h-24 rounded-full object-cover border-4 border-emerald-500 shadow-xl mx-auto"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-extrabold text-3xl flex items-center justify-center shadow-xl mx-auto border-4 border-emerald-400/40">
+                {currentEncoder ? currentEncoder.charAt(0).toUpperCase() : 'U'}
+              </div>
+            )}
+            
+            <label
+              htmlFor="avatar-upload-input-circle"
+              className="absolute bottom-0 right-0 p-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-lg cursor-pointer transition transform hover:scale-110"
+              title="Upload Custom Photo"
+            >
+              <Camera className="w-4 h-4" />
+              <input
+                id="avatar-upload-input-circle"
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </label>
+          </div>
+
+          <h3 className="text-xl font-extrabold text-slate-900 dark:text-white pt-1">
+            User Profile Picture
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Account: <span className="font-bold text-emerald-600 dark:text-emerald-400">{currentEncoder}</span>
+          </p>
+        </div>
+
+        {/* Upload Custom Photo Action */}
+        <div className="space-y-3">
+          <label
+            htmlFor="avatar-upload-input-btn"
+            className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-xs transition border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Upload className="w-4 h-4 text-emerald-500" />
+            <span>Upload Photo from Computer</span>
+            <input
+              id="avatar-upload-input-btn"
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </label>
+
+          {/* Preset Avatars Grid */}
+          <div>
+            <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+              Or Choose Preset Staff Avatar:
+            </span>
+            <div className="grid grid-cols-4 gap-3">
+              {PRESET_AVATARS.map((url, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setSelectedAvatar(url);
+                    setPreviewAvatar(url);
+                  }}
+                  className={`relative rounded-full overflow-hidden border-2 transition transform hover:scale-105 ${
+                    selectedAvatar === url
+                      ? 'border-emerald-500 ring-2 ring-emerald-500/40 scale-105'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-emerald-400'
+                  }`}
+                >
+                  <img src={url} alt={`Preset ${idx + 1}`} className="w-12 h-12 object-cover" />
+                  {selectedAvatar === url && (
+                    <div className="absolute inset-0 bg-emerald-600/40 flex items-center justify-center">
+                      <Check className="w-4 h-4 text-white font-bold" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-3 pt-2">
+          {previewAvatar && (
+            <button
+              type="button"
+              onClick={handleRemoveAvatar}
+              className="p-2.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-bold transition border border-rose-200 dark:border-rose-800"
+              title="Remove Picture"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-1/2 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            className="w-1/2 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5"
+          >
+            <Check className="w-4 h-4" />
+            <span>Save Profile</span>
+          </button>
+        </div>
+
       </div>
     </div>
   );
