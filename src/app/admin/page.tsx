@@ -147,7 +147,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-12 transition-colors relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950/70 text-slate-900 dark:text-slate-100 pb-12 transition-colors relative overflow-hidden backdrop-blur-[2px]">
       
       {/* Background Hospital Logo Watermark Wrap */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden select-none">

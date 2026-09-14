@@ -98,7 +98,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between p-4 sm:p-8 bg-slate-50 dark:bg-slate-950 transition-colors relative overflow-hidden">
+    <div className="min-h-screen flex flex-col justify-between p-4 sm:p-8 bg-slate-50/70 dark:bg-slate-950/70 transition-colors relative overflow-hidden backdrop-blur-[2px]">
       
       {/* Background Hospital Logo Watermark Wrap */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden select-none">

@@ -552,7 +552,7 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-12 transition-colors relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950/70 text-slate-900 dark:text-slate-100 pb-12 transition-colors relative overflow-hidden backdrop-blur-[2px]">
       
       {/* Background Ambient Parallax Floating Glow Orbs */}
       <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-500/10 dark:bg-emerald-500/5 rounded-full blur-3xl pointer-events-none animate-float"></div>
