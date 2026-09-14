@@ -90,9 +90,9 @@ export function Navbar({
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200/80 dark:border-slate-800/80 transition-colors shadow-sm no-print">
         <div className="max-w-[98%] mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-4">
           
-          {/* Brand */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative w-10 h-10 flex-shrink-0 bg-white dark:bg-slate-800 p-0.5 rounded-full shadow-md border border-slate-200 dark:border-slate-700 group-hover:scale-105 transition transform flex items-center justify-center">
+          {/* Brand Logo - Shown on Mobile only (Desktop uses Left Sidebar) */}
+          <Link href="/" className="flex items-center gap-3 group md:hidden">
+            <div className="relative w-9 h-9 flex-shrink-0 bg-white dark:bg-slate-800 p-0.5 rounded-full shadow-md border border-slate-200 dark:border-slate-700 group-hover:scale-105 transition transform flex items-center justify-center">
               <img
                 src="/hospital-logo.png"
                 alt="Cebu Provincial Hospital Balamban Logo"
@@ -101,21 +101,18 @@ export function Navbar({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-base md:text-lg text-slate-900 dark:text-white tracking-tight">
+                <span className="font-extrabold text-base text-slate-900 dark:text-white tracking-tight">
                   PhilHealth Logbook
                 </span>
                 <span className="text-[10px] uppercase font-extrabold tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
                   Pro
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-bold hidden md:block">
-                Cebu Provincial Hospital - Balamban
-              </p>
             </div>
           </Link>
 
-          {/* Desktop Minimal Header Controls */}
-          <div className="hidden md:flex items-center gap-3">
+          {/* Desktop Minimal Header Controls (Pushed to Right side) */}
+          <div className="hidden md:flex items-center gap-3 ml-auto">
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
               {hasCloud ? (
                 <>
@@ -143,39 +140,6 @@ export function Navbar({
             )}
 
             <ThemeToggle />
-
-            {/* User Profile Avatar Badge & Customizer */}
-            <button
-              type="button"
-              onClick={() => setShowAvatarModal(true)}
-              className="flex items-center gap-2 px-2.5 py-1 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition group cursor-pointer"
-              title="Click to view & change your User Profile Picture / Avatar"
-            >
-              {userAvatar ? (
-                <img
-                  src={userAvatar}
-                  alt={encoderName}
-                  className="w-7 h-7 rounded-full object-cover border-2 border-emerald-500 shadow-xs group-hover:scale-105 transition"
-                />
-              ) : (
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-extrabold text-xs flex items-center justify-center shadow-xs group-hover:scale-105 transition">
-                  {encoderName ? encoderName.charAt(0).toUpperCase() : 'U'}
-                </div>
-              )}
-              <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 hidden lg:inline-block">
-                {encoderName}
-              </span>
-            </button>
-
-            {/* Prominent Logout Button */}
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 px-3 py-2 rounded-xl text-xs font-bold transition"
-              title="Logout of Encoder Portal"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Logout</span>
-            </button>
           </div>
 
           {/* Mobile Hamburger Button */}
