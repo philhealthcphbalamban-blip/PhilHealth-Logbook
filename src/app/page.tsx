@@ -7,7 +7,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { REF_MEMBERSHIPS, REF_ICD_MAP } from '@/lib/refData';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { 
-  Users, Calendar, Plus, Trash2, Sparkles, FolderOpen, RefreshCw, Search, Printer, BarChart3, Database, X, CheckCircle, Pencil, Cloud, HardDrive, FileText, Clock
+  Users, Calendar, Plus, Trash2, Sparkles, FolderOpen, RefreshCw, Search, Printer, BarChart3, Database, X, CheckCircle, Pencil, Cloud, HardDrive, FileText, Clock, Wrench
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -62,6 +62,7 @@ export default function Dashboard() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
 
   // Form State (Amount input removed as requested)
   const [category, setCategory] = useState('ADMISSION');
@@ -73,6 +74,21 @@ export default function Dashboard() {
   const [entryTime, setEntryTime] = useState('');
 
   const [selectedIsoDate, setSelectedIsoDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  const checkMaintenanceStatus = async () => {
+    const localVal = localStorage.getItem('philhealth_maintenance_mode') === 'true';
+    setIsMaintenanceMode(localVal);
+    if (isSupabaseConfigured()) {
+      try {
+        const { data } = await supabase.from('system_settings').select('is_active').eq('id', 'maintenance_mode').single();
+        if (data && data.is_active !== undefined) {
+          const active = Boolean(data.is_active);
+          setIsMaintenanceMode(active);
+          localStorage.setItem('philhealth_maintenance_mode', String(active));
+        }
+      } catch (e) {}
+    }
+  };
 
   useEffect(() => {
     const todayStr = getStandardDateKey(new Date());
@@ -90,6 +106,7 @@ export default function Dashboard() {
     setUserRole(savedRole);
     setUserAvatar(savedAvatar);
 
+    checkMaintenanceStatus();
     fetchPastWorksheets();
     loadSavedRecords(todayStr);
   }, []);
@@ -99,10 +116,12 @@ export default function Dashboard() {
     if (!currentDate) return;
 
     loadSavedRecords(currentDate);
+    checkMaintenanceStatus();
 
     // Auto-poll cloud every 3 seconds so Admin and Users are ALWAYS synchronized in real time
     const pollInterval = setInterval(() => {
       loadSavedRecords(currentDate);
+      checkMaintenanceStatus();
     }, 3000);
 
     // Supabase Realtime WebSocket Listener for instant sync (<500ms)
@@ -147,6 +166,22 @@ export default function Dashboard() {
   }, [showAddModal, editingId]);
 
   const isAdmin = userRole === 'ADMIN' || encoder.toLowerCase().includes('admin');
+
+  const handleToggleMaintenance = async () => {
+    if (!isAdmin) return;
+    const newStatus = !isMaintenanceMode;
+    setIsMaintenanceMode(newStatus);
+    localStorage.setItem('philhealth_maintenance_mode', String(newStatus));
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('system_settings').upsert({ id: 'maintenance_mode', is_active: newStatus });
+      } catch (e) {}
+    }
+    alert(newStatus 
+      ? '⚠️ Maintenance Mode ENABLED! Non-admin users are now blocked from adding/editing records while updates are being performed.' 
+      : '✅ Maintenance Mode DISABLED! Full access restored for all users.'
+    );
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('philhealth_encoder');
@@ -939,6 +974,23 @@ export default function Dashboard() {
               />
             </div>
 
+            {/* Admin Maintenance Mode Toggle */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={handleToggleMaintenance}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border shadow-xs ${
+                  isMaintenanceMode
+                    ? 'bg-rose-100 dark:bg-rose-950/80 border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 animate-pulse'
+                    : 'bg-amber-100 dark:bg-amber-950/80 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 hover:bg-amber-200'
+                }`}
+                title={isMaintenanceMode ? "Click to Disable Maintenance Mode" : "Click to Enable Maintenance Mode"}
+              >
+                <Wrench className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span>{isMaintenanceMode ? '⚠️ Maintenance: ON' : '🔧 Maintenance Mode'}</span>
+              </button>
+            )}
+
             <button
               onClick={handleRecoverData}
               className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-amber-700 dark:text-amber-300 rounded-xl text-xs font-bold transition border border-amber-200 dark:border-amber-800 flex items-center gap-1 shadow-2xs"
@@ -1427,6 +1479,23 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Non-Admin System Maintenance Overlay */}
+      {isMaintenanceMode && !isAdmin && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center text-white">
+          <div className="w-20 h-20 bg-amber-500/20 rounded-full flex items-center justify-center border border-amber-500/30 mb-6 animate-pulse">
+            <Wrench className="w-10 h-10 text-amber-400" />
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-extrabold mb-2 text-white">System Maintenance Underway</h2>
+          <p className="max-w-md text-sm text-slate-300 mb-6 leading-relaxed">
+            The Admin is currently performing system maintenance and data synchronization. Logbook entry functions are temporarily paused for non-admin users to prevent date/record conflicts. Please stand by!
+          </p>
+          <div className="flex items-center gap-2 text-xs font-mono font-bold text-amber-400 bg-amber-950/60 border border-amber-800/80 px-4 py-2 rounded-xl">
+            <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
+            <span>Auto-refreshing & checking cloud status...</span>
+          </div>
+        </div>
+      )}
 
     </div>
   );
