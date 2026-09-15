@@ -506,15 +506,16 @@ export default function Dashboard() {
   };
 
   const handleDeleteRecord = async (id: string) => {
-    if (!isAdmin) {
-      alert('⚠️ Access Denied: Only ADMIN users have permission to delete patient records.');
+    const recToDelete = records.find(r => r.id === id);
+    if (!recToDelete) return;
+
+    if (!confirm(`Are you sure you want to delete patient entry "${recToDelete.patientName}"?`)) {
       return;
     }
 
-    const recToDelete = records.find(r => r.id === id);
     const updated = records.filter(r => r.id !== id);
     setRecords(updated);
-    localStorage.setItem(`philhealth_recs_${currentDate}`, JSON.stringify(updated));
+    saveRecordsToLocalAndBackup(currentDate, updated);
 
     if (isSupabaseConfigured()) {
       try {
@@ -1350,24 +1351,14 @@ export default function Dashboard() {
                                   </button>
                                 )}
 
-                              {/* Delete Button - Admin Only */}
-                              {isAdmin ? (
-                                <button
-                                  onClick={() => handleDeleteRecord(r.id)}
-                                  className="p-1.5 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-lg transition"
-                                  title="Delete patient entry (Admin Only)"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              ) : (
-                                <button
-                                  disabled
-                                  className="p-1.5 text-slate-300 dark:text-slate-700 cursor-not-allowed rounded-lg"
-                                  title="Only ADMIN users can delete patient entries"
-                                >
-                                  <Trash2 className="w-4 h-4 opacity-40" />
-                                </button>
-                              )}
+                              {/* Delete Button - Enabled for All Users */}
+                              <button
+                                onClick={() => handleDeleteRecord(r.id)}
+                                className="p-1.5 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-lg transition"
+                                title="Delete patient entry"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </div>
                           </td>
                         </tr>
