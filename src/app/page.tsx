@@ -22,6 +22,7 @@ interface RecordItem {
   pf?: number | null;
   encoderName?: string;
   entryTime?: string;
+  isUnpushed?: boolean;
 }
 
 const deduplicateRecords = (items: RecordItem[]): RecordItem[] => {
@@ -343,13 +344,26 @@ export default function Dashboard() {
             entryTime: d.entry_time || (d.created_at ? new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : undefined)
           }));
 
-          // SAFE MERGE: Combine local records and cloud records so local entries & cloud entries are ALL synchronized!
-          const merged = deduplicateRecords([...localRecords, ...cloudRecords]);
-          setRecords(merged);
-          saveRecordsToLocalAndBackup(dateKey, merged);
+          const cleanCloud = deduplicateRecords(cloudRecords);
 
-          // Auto-push unpushed local records (like Juvy's 97 records) to Supabase Cloud!
-          syncLocalToCloud(dateKey, localRecords, cloudRecords);
+          // Find strictly unpushed local entries (entries explicitly tagged with isUnpushed: true)
+          const unpushed = localRecords.filter(loc => loc.isUnpushed === true);
+
+          if (unpushed.length > 0) {
+            syncLocalToCloud(dateKey, localRecords, cleanCloud);
+          }
+
+          const finalRecords = deduplicateRecords([...cleanCloud, ...unpushed]);
+          setRecords(finalRecords);
+
+          // Update local cache and master backup with synchronized cloud data (removes deleted entries)
+          localStorage.setItem(`philhealth_recs_${dateKey}`, JSON.stringify(finalRecords));
+          try {
+            const masterStr = localStorage.getItem('philhealth_master_backup') || '{}';
+            const masterMap = JSON.parse(masterStr);
+            masterMap[targetKey] = finalRecords;
+            localStorage.setItem('philhealth_master_backup', JSON.stringify(masterMap));
+          } catch (e) {}
         }
       } catch (e) {}
     }
@@ -513,20 +527,34 @@ export default function Dashboard() {
       return;
     }
 
+    const cleanPatient = recToDelete.patientName.trim();
     const updated = records.filter(r => r.id !== id);
     setRecords(updated);
-    saveRecordsToLocalAndBackup(currentDate, updated);
 
+    // Save updated list to local storage & master backup
+    localStorage.setItem(`philhealth_recs_${currentDate}`, JSON.stringify(updated));
+    try {
+      const masterStr = localStorage.getItem('philhealth_master_backup') || '{}';
+      const masterMap = JSON.parse(masterStr);
+      const targetKey = currentDate.trim().toUpperCase();
+      if (masterMap[targetKey]) {
+        masterMap[targetKey] = masterMap[targetKey].filter((r: RecordItem) => 
+          !(r.patientName.trim().toUpperCase() === cleanPatient.toUpperCase() && r.category === recToDelete.category)
+        );
+        localStorage.setItem('philhealth_master_backup', JSON.stringify(masterMap));
+      }
+    } catch(e) {}
+
+    // Delete from Supabase Cloud completely
     if (isSupabaseConfigured()) {
       try {
-        // 1. Delete by ID in Supabase
-        const { error } = await supabase.from('records').delete().eq('id', id);
-        if (error && recToDelete) {
-          // Fallback: Delete by patient name and date_key if string ID mismatched
-          await supabase.from('records').delete()
-            .eq('date_key', currentDate)
-            .eq('patient_name', recToDelete.patientName);
-        }
+        // Delete by ID
+        await supabase.from('records').delete().eq('id', id);
+
+        // Delete by date_key and patient_name to guarantee row removal
+        await supabase.from('records').delete()
+          .eq('date_key', currentDate)
+          .ilike('patient_name', cleanPatient);
       } catch (e) {}
     }
   };
