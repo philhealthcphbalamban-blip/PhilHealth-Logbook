@@ -80,31 +80,15 @@ export default function Dashboard() {
     let active = localStorage.getItem('philhealth_maintenance_mode') === 'true';
     if (isSupabaseConfigured()) {
       try {
-        const { data } = await supabase.from('system_settings').select('is_active').eq('id', 'maintenance_mode').single();
-        if (data && data.is_active !== undefined) {
-          active = Boolean(data.is_active);
-        } else {
-          const { data: sysRec } = await supabase.from('records')
-            .select('patient_name')
-            .eq('date_key', '__SYSTEM_SETTING__')
-            .eq('category', 'MAINTENANCE')
-            .maybeSingle();
-          if (sysRec && sysRec.patient_name !== undefined) {
-            active = sysRec.patient_name.trim().toLowerCase() === 'true';
-          }
+        const { data: sysRec } = await supabase.from('records')
+          .select('patient_name')
+          .eq('date_key', '__SYSTEM_SETTING__')
+          .eq('category', 'MAINTENANCE')
+          .maybeSingle();
+        if (sysRec && sysRec.patient_name !== undefined) {
+          active = sysRec.patient_name.trim().toLowerCase() === 'true';
         }
-      } catch (e) {
-        try {
-          const { data: sysRec } = await supabase.from('records')
-            .select('patient_name')
-            .eq('date_key', '__SYSTEM_SETTING__')
-            .eq('category', 'MAINTENANCE')
-            .maybeSingle();
-          if (sysRec && sysRec.patient_name !== undefined) {
-            active = sysRec.patient_name.trim().toLowerCase() === 'true';
-          }
-        } catch(err) {}
-      }
+      } catch (e) {}
     }
     setIsMaintenanceMode(active);
     localStorage.setItem('philhealth_maintenance_mode', String(active));
@@ -191,13 +175,11 @@ export default function Dashboard() {
   const handleToggleMaintenance = async () => {
     if (!isAdmin) return;
     const newStatus = !isMaintenanceMode;
+    const statusVal = String(newStatus);
     setIsMaintenanceMode(newStatus);
-    localStorage.setItem('philhealth_maintenance_mode', String(newStatus));
-    if (isSupabaseConfigured()) {
-      try {
-        await supabase.from('system_settings').upsert({ id: 'maintenance_mode', is_active: newStatus });
-      } catch (e) {}
+    localStorage.setItem('philhealth_maintenance_mode', statusVal);
 
+    if (isSupabaseConfigured()) {
       try {
         const { data: sysRec } = await supabase.from('records')
           .select('id')
@@ -206,19 +188,20 @@ export default function Dashboard() {
           .maybeSingle();
 
         if (sysRec && sysRec.id) {
-          await supabase.from('records').update({ patient_name: String(newStatus) }).eq('id', sysRec.id);
+          await supabase.from('records').update({ patient_name: statusVal }).eq('id', sysRec.id);
         } else {
           await supabase.from('records').insert({
             date_key: '__SYSTEM_SETTING__',
             category: 'MAINTENANCE',
-            patient_name: String(newStatus),
+            patient_name: statusVal,
             phic_cat: 'SYS',
             icd_code: 'SYS',
-            encoder_name: 'System'
+            encoder_name: 'Admin'
           });
         }
       } catch (e) {}
     }
+
     alert(newStatus 
       ? '⚠️ Maintenance Mode ENABLED! Non-admin users are now blocked from using the site.' 
       : '✅ Maintenance Mode DISABLED! Full access restored for all users.'
