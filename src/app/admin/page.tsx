@@ -53,7 +53,6 @@ export default function AdminPage() {
       } catch (e) {}
     }
 
-    const passMap = JSON.parse(localStorage.getItem('philhealth_user_passwords') || '{}');
     const defaults: UserAccount[] = [
       { id: '1', name: 'System Admin', email: 'admin@hospital.com', role: 'ADMIN', createdAt: new Date().toLocaleDateString() },
       { id: '2', name: 'Juvy', email: 'juvy@hospital.com', role: 'ENCODER', createdAt: new Date().toLocaleDateString() },
@@ -65,27 +64,14 @@ export default function AdminPage() {
     // 1. Add default hospital staff accounts
     defaults.forEach(d => accountMap.set(d.email.toLowerCase(), d));
 
-    // 2. Add existing accounts stored in philhealth_accounts
+    // 2. Add existing accounts explicitly created by Admin
     accounts.forEach(a => {
-      if (a && a.email) accountMap.set(a.email.toLowerCase(), a);
-    });
-
-    // 3. Add any account key from philhealth_user_passwords
-    Object.keys(passMap).forEach((key, idx) => {
-      let email = key.toLowerCase();
-      if (!email.includes('@')) {
-        email = email.replace(/[^a-z0-9]/g, '') + '@hospital.com';
-      }
-      if (!accountMap.has(email)) {
-        const userName = key.toUpperCase();
-        const isAdm = email.includes('admin');
-        accountMap.set(email, {
-          id: String(Date.now() + idx),
-          name: userName,
-          email: email,
-          role: isAdm ? 'ADMIN' : 'ENCODER',
-          createdAt: new Date().toLocaleDateString()
-        });
+      if (a && a.email && a.name) {
+        const cleanName = a.name.trim().toLowerCase();
+        // Purge auto-created junk accounts from previous sessions
+        if (cleanName !== 'nigel' && !cleanName.includes('nigel')) {
+          accountMap.set(a.email.toLowerCase(), a);
+        }
       }
     });
 

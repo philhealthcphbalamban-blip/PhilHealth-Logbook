@@ -108,14 +108,38 @@ export default function Dashboard() {
     const todayStr = getStandardDateKey(new Date());
     setCurrentDate(todayStr);
 
-    const savedEncoder = localStorage.getItem('philhealth_encoder') || 'Juvy';
+    const savedEncoder = localStorage.getItem('philhealth_encoder') || '';
+    
+    // Validate session user against registered accounts list
+    const validStaff = ['system admin', 'admin', 'juvy', 'miko'];
+    let registeredNames: string[] = [];
+    try {
+      const storedAccs = JSON.parse(localStorage.getItem('philhealth_accounts') || '[]');
+      if (Array.isArray(storedAccs)) {
+        registeredNames = storedAccs.map((a: any) => (a.name || '').trim().toLowerCase()).filter(Boolean);
+      }
+    } catch(e) {}
+
+    const allValidUsernames = new Set([...validStaff, ...registeredNames]);
+    const currentEncClean = (savedEncoder || '').trim().toLowerCase();
+
+    if (savedEncoder && !allValidUsernames.has(currentEncClean)) {
+      // Purge unauthorized session (like nigel from previous session) and redirect
+      localStorage.removeItem('philhealth_encoder');
+      localStorage.removeItem('philhealth_user_email');
+      localStorage.removeItem('philhealth_user_role');
+      window.location.href = '/login';
+      return;
+    }
+
+    const finalEncoder = savedEncoder || 'Juvy';
     const savedEmail = localStorage.getItem('philhealth_user_email') || '';
     const savedRole = localStorage.getItem('philhealth_user_role') || 'ENCODER';
     const savedAvatar = 
-      localStorage.getItem(`philhealth_avatar_${savedEncoder.trim().toLowerCase()}`) || 
+      localStorage.getItem(`philhealth_avatar_${finalEncoder.trim().toLowerCase()}`) || 
       localStorage.getItem('philhealth_avatar_user') || 
       '';
-    setEncoder(savedEncoder);
+    setEncoder(finalEncoder);
     setUserEmail(savedEmail);
     setUserRole(savedRole);
     setUserAvatar(savedAvatar);
