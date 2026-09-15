@@ -85,6 +85,20 @@ export default function Dashboard() {
     loadSavedRecords(todayStr);
   }, []);
 
+  // Auto-sync Entry Time with Computer Clock whenever Add Modal is open for a new entry
+  useEffect(() => {
+    if (!showAddModal || editingId) return;
+
+    const getComputerTime = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    setEntryTime(getComputerTime());
+
+    const interval = setInterval(() => {
+      setEntryTime(getComputerTime());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [showAddModal, editingId]);
+
   const isAdmin = userRole === 'ADMIN' || encoder.toLowerCase().includes('admin');
 
   const handleLogout = () => {
@@ -628,6 +642,7 @@ export default function Dashboard() {
           setIcd('');
           setHci('');
           setPf('');
+          setEntryTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
           setDupError('');
           setShowAddModal(true);
         }}
@@ -983,6 +998,7 @@ export default function Dashboard() {
                   setIcd('');
                   setHci('');
                   setPf('');
+                  setEntryTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
                   setDupError('');
                   setShowAddModal(true);
                 }}
