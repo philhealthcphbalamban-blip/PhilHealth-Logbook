@@ -52,6 +52,7 @@ export default function Dashboard() {
   const [userAvatar, setUserAvatar] = useState('');
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [activeFilter, setActiveFilter] = useState('ALL');
+  const [activeEncoderFilter, setActiveEncoderFilter] = useState('ALL');
   const [dupError, setDupError] = useState('');
 
   // New Features State
@@ -728,8 +729,12 @@ export default function Dashboard() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const availableEncoders = Array.from(new Set(records.map(r => (r.encoderName || 'System').trim()))).filter(Boolean);
+
   const filteredRecords = records.filter(r => {
     const matchesCategory = activeFilter === 'ALL' || r.category === activeFilter;
+    const recEnc = (r.encoderName || 'System').trim().toUpperCase();
+    const matchesEncoder = activeEncoderFilter === 'ALL' || recEnc === activeEncoderFilter.trim().toUpperCase();
     const q = searchQuery.trim().toLowerCase();
     const matchesSearch = !q || 
       (r.patientName && r.patientName.toLowerCase().includes(q)) ||
@@ -738,7 +743,7 @@ export default function Dashboard() {
       (r.encoderName && r.encoderName.toLowerCase().includes(q)) ||
       (r.entryTime && r.entryTime.toLowerCase().includes(q)) ||
       (r.category && r.category.toLowerCase().includes(q));
-    return matchesCategory && matchesSearch;
+    return matchesCategory && matchesEncoder && matchesSearch;
   });
 
   return (
@@ -1151,16 +1156,36 @@ export default function Dashboard() {
               </div>
             </div>
 
-              {/* Global Search Bar */}
-              <div className="relative min-w-[200px] sm:w-64">
-                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search patient, ICD, encoder..."
-                  className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:outline-none focus:border-emerald-500 text-slate-900 dark:text-white shadow-sm"
-                />
+              {/* Encoder View Filter Dropdown (Master View for Admin & Encoders) */}
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                <select
+                  value={activeEncoderFilter}
+                  onChange={(e) => setActiveEncoderFilter(e.target.value)}
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 shadow-sm transition"
+                  title="Filter logbook entries by Encoder"
+                >
+                  <option value="ALL">🌐 All Encoders ({records.length} patients)</option>
+                  {availableEncoders.map(enc => {
+                    const count = records.filter(r => (r.encoderName || 'System').trim() === enc).length;
+                    return (
+                      <option key={enc} value={enc}>
+                        👤 {enc} ({count} {count === 1 ? 'patient' : 'patients'})
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {/* Global Search Bar */}
+                <div className="relative min-w-[180px] sm:w-60">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search patient, ICD, encoder..."
+                    className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:outline-none focus:border-emerald-500 text-slate-900 dark:text-white shadow-sm"
+                  />
+                </div>
               </div>
             </div>
 
