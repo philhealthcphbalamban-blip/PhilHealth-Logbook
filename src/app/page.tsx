@@ -34,6 +34,15 @@ const deduplicateRecords = (items: RecordItem[]): RecordItem[] => {
   });
 };
 
+const MONTH_NAMES = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+
+const getStandardDateKey = (d: Date = new Date()) => {
+  const month = MONTH_NAMES[d.getMonth()];
+  const day = d.getDate();
+  const year = d.getFullYear();
+  return `${month} ${day}, ${year}`;
+};
+
 export default function Dashboard() {
   const [currentDate, setCurrentDate] = useState('');
   const [pastDates, setPastDates] = useState<string[]>([]);
@@ -65,8 +74,7 @@ export default function Dashboard() {
   const [selectedIsoDate, setSelectedIsoDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
-    const todayObj = new Date();
-    const todayStr = todayObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase();
+    const todayStr = getStandardDateKey(new Date());
     setCurrentDate(todayStr);
 
     const savedEncoder = localStorage.getItem('philhealth_encoder') || 'Juvy';
@@ -84,6 +92,44 @@ export default function Dashboard() {
     fetchPastWorksheets();
     loadSavedRecords(todayStr);
   }, []);
+
+  // Real-time Multi-User Cloud Synchronization (Supabase Realtime + 3-second Auto Polling)
+  useEffect(() => {
+    if (!currentDate) return;
+
+    loadSavedRecords(currentDate);
+
+    // Auto-poll cloud every 3 seconds so Admin and Users are ALWAYS synchronized in real time
+    const pollInterval = setInterval(() => {
+      loadSavedRecords(currentDate);
+    }, 3000);
+
+    // Supabase Realtime WebSocket Listener for instant sync (<500ms)
+    let channel: any = null;
+    if (isSupabaseConfigured()) {
+      try {
+        channel = supabase
+          .channel(`public:records:${currentDate.replace(/[^a-zA-Z0-9]/g, '_')}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'records' },
+            () => {
+              loadSavedRecords(currentDate);
+            }
+          )
+          .subscribe();
+      } catch (e) {}
+    }
+
+    return () => {
+      clearInterval(pollInterval);
+      if (channel && isSupabaseConfigured()) {
+        try {
+          supabase.removeChannel(channel);
+        } catch (e) {}
+      }
+    };
+  }, [currentDate]);
 
   // Auto-sync Entry Time with Computer Clock whenever Add Modal is open for a new entry
   useEffect(() => {
@@ -121,7 +167,7 @@ export default function Dashboard() {
       const month = parseInt(parts[1], 10) - 1;
       const day = parseInt(parts[2], 10);
       const d = new Date(year, month, day);
-      const formattedKey = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase();
+      const formattedKey = getStandardDateKey(d);
       setCurrentDate(formattedKey);
       loadSavedRecords(formattedKey);
     }
@@ -136,7 +182,7 @@ export default function Dashboard() {
         const { data } = await supabase.from('records').select('date_key');
         if (data) {
           data.forEach(r => {
-            if (r.date_key) datesSet.add(r.date_key);
+            if (r.date_key) datesSet.add(r.date_key.trim().toUpperCase());
           });
         }
       } catch (e) {}
@@ -146,7 +192,7 @@ export default function Dashboard() {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith('philhealth_recs_')) {
-        datesSet.add(key.replace('philhealth_recs_', ''));
+        datesSet.add(key.replace('philhealth_recs_', '').trim().toUpperCase());
       }
     }
 
@@ -174,6 +220,9 @@ export default function Dashboard() {
   };
 
   const loadSavedRecords = async (dateKey: string) => {
+    if (!dateKey) return;
+    const targetKey = dateKey.trim().toUpperCase();
+
     // 1. Instant local-first rendering with master backup recovery
     let localRecords: RecordItem[] = [];
     const localData = localStorage.getItem(`philhealth_recs_${dateKey}`);
@@ -188,8 +237,8 @@ export default function Dashboard() {
       try {
         const masterStr = localStorage.getItem('philhealth_master_backup') || '{}';
         const masterMap = JSON.parse(masterStr);
-        if (masterMap[dateKey] && Array.isArray(masterMap[dateKey]) && masterMap[dateKey].length > 0) {
-          localRecords = masterMap[dateKey];
+        if (masterMap[targetKey] && Array.isArray(masterMap[targetKey]) && masterMap[targetKey].length > 0) {
+          localRecords = masterMap[targetKey];
           localStorage.setItem(`philhealth_recs_${dateKey}`, JSON.stringify(localRecords));
         }
       } catch (e) {}
@@ -197,17 +246,21 @@ export default function Dashboard() {
 
     setRecords(deduplicateRecords(localRecords));
 
-    // 2. Query Supabase (Cloud Sync)
+    // 2. Query Supabase (Cloud Multi-User Real-time Sync)
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase
           .from('records')
           .select('*')
-          .eq('date_key', dateKey)
           .order('created_at', { ascending: true });
 
         if (!error && data) {
-          const cloudRecords: RecordItem[] = data.map((d: any) => ({
+          // Filter matching date_key case-insensitively across all computers & encoders
+          const matchingData = data.filter((d: any) => 
+            d.date_key && d.date_key.trim().toUpperCase() === targetKey
+          );
+
+          const cloudRecords: RecordItem[] = matchingData.map((d: any) => ({
             id: String(d.id || Date.now()),
             category: d.category,
             patientName: d.patient_name,
@@ -220,7 +273,7 @@ export default function Dashboard() {
             entryTime: d.entry_time || (d.created_at ? new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : undefined)
           }));
 
-          // SAFE MERGE: Combine local records and cloud records so local entries are NEVER erased
+          // SAFE MERGE: Combine local records and cloud records so local entries & cloud entries are ALL synchronized!
           const merged = deduplicateRecords([...localRecords, ...cloudRecords]);
           setRecords(merged);
           saveRecordsToLocalAndBackup(dateKey, merged);
