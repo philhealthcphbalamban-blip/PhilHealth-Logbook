@@ -37,6 +37,16 @@ const deduplicateRecords = (items: RecordItem[]): RecordItem[] => {
 
 const MONTH_NAMES = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
 
+const sanitizeEncoderName = (rawName?: string): string => {
+  if (!rawName) return 'System';
+  const clean = rawName.trim();
+  const lower = clean.toLowerCase();
+  if (lower === 'mikod' || lower === 'miko d' || lower.startsWith('miko')) return 'Miko';
+  if (lower === 'juvyy' || lower === 'juvy d' || lower.startsWith('juvy')) return 'Juvy';
+  if (lower.includes('admin')) return 'System Admin';
+  return clean;
+};
+
 const getStandardDateKey = (d: Date = new Date()) => {
   const month = MONTH_NAMES[d.getMonth()];
   const day = d.getDate();
@@ -354,8 +364,11 @@ export default function Dashboard() {
       } catch (e) {}
     }
 
-    // Filter out deleted keys from local view
-    localRecords = localRecords.filter(r => {
+    // Filter out deleted keys from local view & sanitize encoder names
+    localRecords = localRecords.map(r => ({
+      ...r,
+      encoderName: sanitizeEncoderName(r.encoderName)
+    })).filter(r => {
       if (!r.patientName) return false;
       const key = `${targetKey}||${r.patientName.trim().toUpperCase()}||${r.category.trim().toUpperCase()}`;
       return !deletedKeys.has(key);
@@ -372,6 +385,11 @@ export default function Dashboard() {
           .order('created_at', { ascending: true });
 
         if (!error && data) {
+          // Auto-clean ghost typo encoder names in Supabase Cloud DB permanently
+          if (data.some((d: any) => d.encoder_name && d.encoder_name.trim().toLowerCase() === 'mikod')) {
+            supabase.from('records').update({ encoder_name: 'Miko' }).ilike('encoder_name', 'mikod').then(() => {});
+          }
+
           // Filter matching date_key case-insensitively across all computers & encoders, excluding system settings
           const matchingData = data.filter((d: any) => 
             d.date_key && 
@@ -389,7 +407,7 @@ export default function Dashboard() {
               amount: d.amount,
               hci: d.hci_amount,
               pf: d.pf_amount,
-              encoderName: d.encoder_name,
+              encoderName: sanitizeEncoderName(d.encoder_name),
               entryTime: d.entry_time || (d.created_at ? new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : undefined)
             }))
             .filter((r: RecordItem) => {
@@ -1062,12 +1080,19 @@ export default function Dashboard() {
 
             <div className="bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs shadow-xs">
               <span className="text-slate-400 uppercase font-bold text-[10px] block">Encoder</span>
-              <input
-                type="text"
-                value={encoder}
-                onChange={(e) => setEncoder(e.target.value)}
-                className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none"
-              />
+              <select
+                value={sanitizeEncoderName(encoder)}
+                onChange={(e) => {
+                  const val = sanitizeEncoderName(e.target.value);
+                  setEncoder(val);
+                  localStorage.setItem('philhealth_encoder', val);
+                }}
+                className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+              >
+                <option value="Juvy">Juvy</option>
+                <option value="Miko">Miko</option>
+                <option value="System Admin">System Admin</option>
+              </select>
             </div>
 
             {/* Admin Maintenance Mode Toggle */}
