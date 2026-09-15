@@ -123,7 +123,7 @@ export default function LoginPage() {
 
       {/* Top Header */}
       <div className="flex justify-between items-center w-full max-w-[98%] mx-auto px-2 relative z-10">
-        <Link href="/" className="flex items-center gap-3 group">
+        <div className="flex items-center gap-3 select-none">
           <div className="w-9 h-9 bg-white dark:bg-slate-800 p-0.5 rounded-full shadow-md border border-slate-200 dark:border-slate-700 flex items-center justify-center">
             <img
               src="/hospital-logo.png"
@@ -134,7 +134,7 @@ export default function LoginPage() {
           <span className="font-extrabold text-slate-900 dark:text-white text-base sm:text-lg">
             Cebu Provincial Hospital - Balamban
           </span>
-        </Link>
+        </div>
         <ThemeToggle />
       </div>
 

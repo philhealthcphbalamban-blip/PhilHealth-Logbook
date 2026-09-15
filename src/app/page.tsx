@@ -123,8 +123,8 @@ export default function Dashboard() {
     const allValidUsernames = new Set([...validStaff, ...registeredNames]);
     const currentEncClean = (savedEncoder || '').trim().toLowerCase();
 
-    if (savedEncoder && !allValidUsernames.has(currentEncClean)) {
-      // Purge unauthorized session (like nigel from previous session) and redirect
+    if (!savedEncoder || !allValidUsernames.has(currentEncClean)) {
+      // Unauthenticated or invalid session -> redirect to login page immediately
       localStorage.removeItem('philhealth_encoder');
       localStorage.removeItem('philhealth_user_email');
       localStorage.removeItem('philhealth_user_role');
@@ -132,7 +132,7 @@ export default function Dashboard() {
       return;
     }
 
-    const finalEncoder = savedEncoder || 'Juvy';
+    const finalEncoder = savedEncoder;
     const savedEmail = localStorage.getItem('philhealth_user_email') || '';
     const savedRole = localStorage.getItem('philhealth_user_role') || 'ENCODER';
     const savedAvatar = 
