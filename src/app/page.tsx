@@ -220,6 +220,40 @@ export default function Dashboard() {
     } catch (e) {}
   };
 
+  const syncLocalToCloud = async (dateKey: string, localRecs: RecordItem[], cloudRecs: RecordItem[]) => {
+    if (!isSupabaseConfigured() || localRecs.length === 0) return;
+
+    // Find local records that aren't present in cloudRecords
+    const unpushed = localRecs.filter(loc => 
+      loc.patientName && !cloudRecs.some(c => 
+        c.patientName.trim().toUpperCase() === loc.patientName.trim().toUpperCase() && 
+        c.category.trim().toUpperCase() === loc.category.trim().toUpperCase()
+      )
+    );
+
+    if (unpushed.length > 0) {
+      for (const item of unpushed) {
+        const payload: any = {
+          date_key: dateKey,
+          category: item.category,
+          patient_name: item.patientName,
+          phic_cat: item.phicCat,
+          icd_code: item.icd,
+          amount: item.amount,
+          hci_amount: item.hci,
+          pf_amount: item.pf,
+          encoder_name: item.encoderName || encoder || 'System'
+        };
+        try {
+          const { error } = await supabase.from('records').insert({ ...payload, entry_time: item.entryTime });
+          if (error) {
+            await supabase.from('records').insert(payload);
+          }
+        } catch (e) {}
+      }
+    }
+  };
+
   const loadSavedRecords = async (dateKey: string) => {
     if (!dateKey) return;
     const targetKey = dateKey.trim().toUpperCase();
@@ -278,6 +312,9 @@ export default function Dashboard() {
           const merged = deduplicateRecords([...localRecords, ...cloudRecords]);
           setRecords(merged);
           saveRecordsToLocalAndBackup(dateKey, merged);
+
+          // Auto-push unpushed local records (like Juvy's 97 records) to Supabase Cloud!
+          syncLocalToCloud(dateKey, localRecords, cloudRecords);
         }
       } catch (e) {}
     }
@@ -487,8 +524,9 @@ export default function Dashboard() {
       const dedupped = deduplicateRecords(combined);
       setRecords(dedupped);
       saveRecordsToLocalAndBackup(currentDate, dedupped);
+      syncLocalToCloud(currentDate, dedupped, []);
       fetchPastWorksheets();
-      alert(`✅ Data Recovery Scan Complete! Restored ${dedupped.length} total entries for ${currentDate}.`);
+      alert(`✅ Data Recovery Scan Complete! Restored and synced ${dedupped.length} total entries for ${currentDate}.`);
     } catch (e) {
       alert('⚠️ Recovery scan completed.');
     }
