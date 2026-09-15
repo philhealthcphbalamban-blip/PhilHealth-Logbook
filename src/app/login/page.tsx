@@ -34,82 +34,76 @@ export default function LoginPage() {
       ? activeUser.toLowerCase()
       : activeUser.toLowerCase().replace(/[^a-z0-9]/g, '') + '@hospital.com';
 
-    const isAdmin = activeUser.toLowerCase().includes('admin');
+    // 1. Fetch Registered Accounts list
+    const defaultAccounts = [
+      { name: 'System Admin', email: 'admin@hospital.com', role: 'ADMIN' },
+      { name: 'Juvy', email: 'juvy@hospital.com', role: 'ENCODER' },
+      { name: 'Miko', email: 'miko@hospital.com', role: 'ENCODER' }
+    ];
 
-    // 1. Local Password Map verification
-    const passMap = JSON.parse(localStorage.getItem('philhealth_user_passwords') || '{}');
-    const storedPass = passMap[activeUser.toLowerCase()] || passMap[generatedEmail.toLowerCase()];
+    let userAccounts: any[] = [];
+    try {
+      userAccounts = JSON.parse(localStorage.getItem('philhealth_accounts') || '[]');
+    } catch (e) {}
 
-    if (storedPass && storedPass !== enteredPass) {
+    const allRegistered = [...defaultAccounts, ...userAccounts];
+
+    // Check if account exists
+    const registeredUser = allRegistered.find(a => 
+      a && (
+        (a.name && a.name.trim().toLowerCase() === activeUser.toLowerCase()) ||
+        (a.email && a.email.trim().toLowerCase() === generatedEmail.toLowerCase())
+      )
+    );
+
+    if (!registeredUser) {
       setLoading(false);
-      setErrorMsg('❌ Incorrect password! Please enter your valid account password.');
+      setErrorMsg(`❌ Access Denied: Account "${activeUser}" is not registered. Please ask the Admin to create your account first.`);
       return;
     }
 
-    // 2. Cloud Authentication if Supabase is enabled
-    if (isSupabaseConfigured()) {
-      try {
-        const { error: signInErr } = await supabase.auth.signInWithPassword({
-          email: generatedEmail,
-          password: enteredPass,
-        });
+    const officialName = registeredUser.name || activeUser;
+    const officialEmail = registeredUser.email || generatedEmail;
+    const officialRole = registeredUser.role || (officialName.toLowerCase().includes('admin') ? 'ADMIN' : 'ENCODER');
 
-        if (signInErr) {
-          // If credentials don't match existing account in Supabase
-          if (signInErr.message.toLowerCase().includes('invalid login credentials') || signInErr.status === 400) {
-            // Attempt auto signup for fresh initial account
-            if (!storedPass) {
-              const { error: signUpErr } = await supabase.auth.signUp({
-                email: generatedEmail,
-                password: enteredPass,
-                options: {
-                  data: { encoder_name: activeUser },
-                },
-              });
-              if (signUpErr && signUpErr.message.toLowerCase().includes('already registered')) {
-                setLoading(false);
-                setErrorMsg('❌ Incorrect password! Please enter the correct password.');
-                return;
-              }
-            } else {
-              setLoading(false);
-              setErrorMsg('❌ Incorrect password! Please check your credentials.');
-              return;
-            }
-          }
-        }
-      } catch (err) {
-        // Fallthrough if network issue
+    // 2. Password Verification
+    const passMap = JSON.parse(localStorage.getItem('philhealth_user_passwords') || '{}');
+    const storedPass = passMap[officialName.toLowerCase()] || passMap[officialEmail.toLowerCase()] || passMap[activeUser.toLowerCase()];
+
+    if (storedPass) {
+      if (storedPass !== enteredPass) {
+        setLoading(false);
+        setErrorMsg(`❌ Incorrect password for account "${officialName}".`);
+        return;
       }
-    }
-
-    // 3. Save initial password to local map if new account
-    if (!storedPass) {
-      passMap[activeUser.toLowerCase()] = enteredPass;
-      passMap[generatedEmail.toLowerCase()] = enteredPass;
+    } else {
+      // Default password fallback for initial default staff accounts if not changed yet
+      const defaultPass = officialRole === 'ADMIN' ? 'admin123' : '123456';
+      if (enteredPass !== defaultPass && enteredPass !== '123456' && enteredPass !== 'admin123') {
+        setLoading(false);
+        setErrorMsg(`❌ Incorrect password for account "${officialName}".`);
+        return;
+      }
+      // Store verified initial password
+      passMap[officialName.toLowerCase()] = enteredPass;
+      passMap[officialEmail.toLowerCase()] = enteredPass;
       localStorage.setItem('philhealth_user_passwords', JSON.stringify(passMap));
     }
 
-    // 4. Register into philhealth_accounts list so it appears in Admin Registered Accounts
-    try {
-      const existingAccounts: any[] = JSON.parse(localStorage.getItem('philhealth_accounts') || '[]');
-      const exists = existingAccounts.some(a => a && a.email && a.email.toLowerCase() === generatedEmail.toLowerCase());
-      if (!exists) {
-        existingAccounts.push({
-          id: String(Date.now()),
-          name: activeUser,
-          email: generatedEmail,
-          role: isAdmin ? 'ADMIN' : 'ENCODER',
-          createdAt: new Date().toLocaleDateString()
+    // 3. Supabase Sign In (if configured)
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.auth.signInWithPassword({
+          email: officialEmail,
+          password: enteredPass,
         });
-        localStorage.setItem('philhealth_accounts', JSON.stringify(existingAccounts));
-      }
-    } catch (e) {}
+      } catch (err) {}
+    }
 
-    // 5. Save Session Credentials & Redirect
-    localStorage.setItem('philhealth_encoder', activeUser);
-    localStorage.setItem('philhealth_user_email', generatedEmail);
-    localStorage.setItem('philhealth_user_role', isAdmin ? 'ADMIN' : 'ENCODER');
+    // 4. Save Valid Session Credentials & Redirect
+    localStorage.setItem('philhealth_encoder', officialName);
+    localStorage.setItem('philhealth_user_email', officialEmail);
+    localStorage.setItem('philhealth_user_role', officialRole);
 
     window.location.href = '/';
   };
