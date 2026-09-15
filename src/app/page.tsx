@@ -135,10 +135,11 @@ export default function Dashboard() {
     const finalEncoder = savedEncoder;
     const savedEmail = localStorage.getItem('philhealth_user_email') || '';
     const savedRole = localStorage.getItem('philhealth_user_role') || 'ENCODER';
-    const savedAvatar = 
-      localStorage.getItem(`philhealth_avatar_${finalEncoder.trim().toLowerCase()}`) || 
-      localStorage.getItem('philhealth_avatar_user') || 
-      '';
+    
+    // Purge obsolete shared avatar fallback key
+    localStorage.removeItem('philhealth_avatar_user');
+
+    const savedAvatar = localStorage.getItem(`philhealth_avatar_${finalEncoder.trim().toLowerCase()}`) || '';
     setEncoder(finalEncoder);
     setUserEmail(savedEmail);
     setUserRole(savedRole);
@@ -1022,8 +1023,12 @@ export default function Dashboard() {
           setUserAvatar(newAvatar);
           try {
             const enc = (encoder || localStorage.getItem('philhealth_encoder') || 'juvy').trim().toLowerCase();
-            localStorage.setItem(`philhealth_avatar_${enc}`, newAvatar);
-            localStorage.setItem('philhealth_avatar_user', newAvatar);
+            if (newAvatar) {
+              localStorage.setItem(`philhealth_avatar_${enc}`, newAvatar);
+            } else {
+              localStorage.removeItem(`philhealth_avatar_${enc}`);
+            }
+            localStorage.removeItem('philhealth_avatar_user');
           } catch(e) {}
         }}
       />

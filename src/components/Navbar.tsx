@@ -59,10 +59,11 @@ export function Navbar({
   React.useEffect(() => {
     const encoder = localStorage.getItem('philhealth_encoder') || 'Encoder';
     const role = localStorage.getItem('philhealth_user_role') || 'ENCODER';
-    const avatar = 
-      localStorage.getItem(`philhealth_avatar_${encoder.trim().toLowerCase()}`) ||
-      localStorage.getItem('philhealth_avatar_user') || 
-      '';
+    
+    // Purge obsolete shared avatar key to prevent profile picture bleed across accounts
+    localStorage.removeItem('philhealth_avatar_user');
+
+    const avatar = localStorage.getItem(`philhealth_avatar_${encoder.trim().toLowerCase()}`) || '';
     setEncoderName(encoder);
     setUserRole(role);
     setUserAvatar(avatar);
@@ -76,7 +77,7 @@ export function Navbar({
       if (encoderName) {
         localStorage.setItem(`philhealth_avatar_${encoderName.trim().toLowerCase()}`, newAvatarUrl);
       }
-      localStorage.setItem('philhealth_avatar_user', newAvatarUrl);
+      localStorage.removeItem('philhealth_avatar_user');
     } catch (err) {
       console.error('Failed to write avatar to localStorage', err);
     }
