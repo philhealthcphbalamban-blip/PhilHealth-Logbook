@@ -77,18 +77,37 @@ export default function Dashboard() {
   const [selectedIsoDate, setSelectedIsoDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const checkMaintenanceStatus = async () => {
-    const localVal = localStorage.getItem('philhealth_maintenance_mode') === 'true';
-    setIsMaintenanceMode(localVal);
+    let active = localStorage.getItem('philhealth_maintenance_mode') === 'true';
     if (isSupabaseConfigured()) {
       try {
         const { data } = await supabase.from('system_settings').select('is_active').eq('id', 'maintenance_mode').single();
         if (data && data.is_active !== undefined) {
-          const active = Boolean(data.is_active);
-          setIsMaintenanceMode(active);
-          localStorage.setItem('philhealth_maintenance_mode', String(active));
+          active = Boolean(data.is_active);
+        } else {
+          const { data: sysRec } = await supabase.from('records')
+            .select('patient_name')
+            .eq('date_key', '__SYSTEM_SETTING__')
+            .eq('category', 'MAINTENANCE')
+            .maybeSingle();
+          if (sysRec && sysRec.patient_name !== undefined) {
+            active = sysRec.patient_name.trim().toLowerCase() === 'true';
+          }
         }
-      } catch (e) {}
+      } catch (e) {
+        try {
+          const { data: sysRec } = await supabase.from('records')
+            .select('patient_name')
+            .eq('date_key', '__SYSTEM_SETTING__')
+            .eq('category', 'MAINTENANCE')
+            .maybeSingle();
+          if (sysRec && sysRec.patient_name !== undefined) {
+            active = sysRec.patient_name.trim().toLowerCase() === 'true';
+          }
+        } catch(err) {}
+      }
     }
+    setIsMaintenanceMode(active);
+    localStorage.setItem('philhealth_maintenance_mode', String(active));
   };
 
   useEffect(() => {
@@ -136,6 +155,7 @@ export default function Dashboard() {
             { event: '*', schema: 'public', table: 'records' },
             () => {
               loadSavedRecords(currentDate);
+              checkMaintenanceStatus();
             }
           )
           .subscribe();
@@ -177,9 +197,30 @@ export default function Dashboard() {
       try {
         await supabase.from('system_settings').upsert({ id: 'maintenance_mode', is_active: newStatus });
       } catch (e) {}
+
+      try {
+        const { data: sysRec } = await supabase.from('records')
+          .select('id')
+          .eq('date_key', '__SYSTEM_SETTING__')
+          .eq('category', 'MAINTENANCE')
+          .maybeSingle();
+
+        if (sysRec && sysRec.id) {
+          await supabase.from('records').update({ patient_name: String(newStatus) }).eq('id', sysRec.id);
+        } else {
+          await supabase.from('records').insert({
+            date_key: '__SYSTEM_SETTING__',
+            category: 'MAINTENANCE',
+            patient_name: String(newStatus),
+            phic_cat: 'SYS',
+            icd_code: 'SYS',
+            encoder_name: 'System'
+          });
+        }
+      } catch (e) {}
     }
     alert(newStatus 
-      ? '⚠️ Maintenance Mode ENABLED! Non-admin users are now blocked from adding/editing records while updates are being performed.' 
+      ? '⚠️ Maintenance Mode ENABLED! Non-admin users are now blocked from using the site.' 
       : '✅ Maintenance Mode DISABLED! Full access restored for all users.'
     );
   };
@@ -259,13 +300,22 @@ export default function Dashboard() {
   const syncLocalToCloud = async (dateKey: string, localRecs: RecordItem[], cloudRecs: RecordItem[]) => {
     if (!isSupabaseConfigured() || localRecs.length === 0) return;
 
-    // Find local records that aren't present in cloudRecords
-    const unpushed = localRecs.filter(loc => 
-      loc.patientName && !cloudRecs.some(c => 
+    let deletedKeys = new Set<string>();
+    try {
+      deletedKeys = new Set(JSON.parse(localStorage.getItem('philhealth_deleted_keys') || '[]'));
+    } catch (e) {}
+
+    // Find ONLY strictly unpushed local entries that are NOT deleted
+    const unpushed = localRecs.filter(loc => {
+      if (!loc.patientName) return false;
+      if (loc.isUnpushed !== true) return false;
+      const key = `${dateKey.trim().toUpperCase()}||${loc.patientName.trim().toUpperCase()}||${loc.category.trim().toUpperCase()}`;
+      if (deletedKeys.has(key)) return false;
+      return !cloudRecs.some(c => 
         c.patientName.trim().toUpperCase() === loc.patientName.trim().toUpperCase() && 
         c.category.trim().toUpperCase() === loc.category.trim().toUpperCase()
-      )
-    );
+      );
+    });
 
     if (unpushed.length > 0) {
       for (const item of unpushed) {
@@ -285,6 +335,7 @@ export default function Dashboard() {
           if (error) {
             await supabase.from('records').insert(payload);
           }
+          item.isUnpushed = false;
         } catch (e) {}
       }
     }
@@ -293,6 +344,11 @@ export default function Dashboard() {
   const loadSavedRecords = async (dateKey: string) => {
     if (!dateKey) return;
     const targetKey = dateKey.trim().toUpperCase();
+
+    let deletedKeys = new Set<string>();
+    try {
+      deletedKeys = new Set(JSON.parse(localStorage.getItem('philhealth_deleted_keys') || '[]'));
+    } catch (e) {}
 
     // 1. Instant local-first rendering with master backup recovery
     let localRecords: RecordItem[] = [];
@@ -315,6 +371,13 @@ export default function Dashboard() {
       } catch (e) {}
     }
 
+    // Filter out deleted keys from local view
+    localRecords = localRecords.filter(r => {
+      if (!r.patientName) return false;
+      const key = `${targetKey}||${r.patientName.trim().toUpperCase()}||${r.category.trim().toUpperCase()}`;
+      return !deletedKeys.has(key);
+    });
+
     setRecords(deduplicateRecords(localRecords));
 
     // 2. Query Supabase (Cloud Multi-User Real-time Sync)
@@ -326,27 +389,35 @@ export default function Dashboard() {
           .order('created_at', { ascending: true });
 
         if (!error && data) {
-          // Filter matching date_key case-insensitively across all computers & encoders
+          // Filter matching date_key case-insensitively across all computers & encoders, excluding system settings
           const matchingData = data.filter((d: any) => 
-            d.date_key && d.date_key.trim().toUpperCase() === targetKey
+            d.date_key && 
+            d.date_key.trim().toUpperCase() === targetKey && 
+            d.date_key !== '__SYSTEM_SETTING__'
           );
 
-          const cloudRecords: RecordItem[] = matchingData.map((d: any) => ({
-            id: String(d.id || Date.now()),
-            category: d.category,
-            patientName: d.patient_name,
-            phicCat: d.phic_cat,
-            icd: d.icd_code,
-            amount: d.amount,
-            hci: d.hci_amount,
-            pf: d.pf_amount,
-            encoderName: d.encoder_name,
-            entryTime: d.entry_time || (d.created_at ? new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : undefined)
-          }));
+          const cloudRecords: RecordItem[] = matchingData
+            .map((d: any) => ({
+              id: String(d.id || Date.now()),
+              category: d.category,
+              patientName: d.patient_name,
+              phicCat: d.phic_cat,
+              icd: d.icd_code,
+              amount: d.amount,
+              hci: d.hci_amount,
+              pf: d.pf_amount,
+              encoderName: d.encoder_name,
+              entryTime: d.entry_time || (d.created_at ? new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : undefined)
+            }))
+            .filter((r: RecordItem) => {
+              if (!r.patientName) return false;
+              const key = `${targetKey}||${r.patientName.trim().toUpperCase()}||${r.category.trim().toUpperCase()}`;
+              return !deletedKeys.has(key);
+            });
 
           const cleanCloud = deduplicateRecords(cloudRecords);
 
-          // Find strictly unpushed local entries (entries explicitly tagged with isUnpushed: true)
+          // Find strictly unpushed local entries
           const unpushed = localRecords.filter(loc => loc.isUnpushed === true);
 
           if (unpushed.length > 0) {
@@ -528,6 +599,19 @@ export default function Dashboard() {
     }
 
     const cleanPatient = recToDelete.patientName.trim();
+    const cleanCategory = recToDelete.category.trim();
+    const targetKey = currentDate.trim().toUpperCase();
+
+    // Track deleted key in localStorage so deleted records never re-upload
+    const deleteKey = `${targetKey}||${cleanPatient.toUpperCase()}||${cleanCategory.toUpperCase()}`;
+    try {
+      const deletedList = JSON.parse(localStorage.getItem('philhealth_deleted_keys') || '[]');
+      if (!deletedList.includes(deleteKey)) {
+        deletedList.push(deleteKey);
+        localStorage.setItem('philhealth_deleted_keys', JSON.stringify(deletedList));
+      }
+    } catch (e) {}
+
     const updated = records.filter(r => r.id !== id);
     setRecords(updated);
 
@@ -536,10 +620,9 @@ export default function Dashboard() {
     try {
       const masterStr = localStorage.getItem('philhealth_master_backup') || '{}';
       const masterMap = JSON.parse(masterStr);
-      const targetKey = currentDate.trim().toUpperCase();
       if (masterMap[targetKey]) {
         masterMap[targetKey] = masterMap[targetKey].filter((r: RecordItem) => 
-          !(r.patientName.trim().toUpperCase() === cleanPatient.toUpperCase() && r.category === recToDelete.category)
+          !(r.patientName.trim().toUpperCase() === cleanPatient.toUpperCase() && r.category.trim().toUpperCase() === cleanCategory.toUpperCase())
         );
         localStorage.setItem('philhealth_master_backup', JSON.stringify(masterMap));
       }
@@ -551,9 +634,10 @@ export default function Dashboard() {
         // Delete by ID
         await supabase.from('records').delete().eq('id', id);
 
-        // Delete by date_key and patient_name to guarantee row removal
+        // Delete by date_key, category, and patient_name to guarantee row removal
         await supabase.from('records').delete()
           .eq('date_key', currentDate)
+          .eq('category', cleanCategory)
           .ilike('patient_name', cleanPatient);
       } catch (e) {}
     }
@@ -1501,17 +1585,17 @@ export default function Dashboard() {
 
       {/* Non-Admin System Maintenance Overlay */}
       {isMaintenanceMode && !isAdmin && (
-        <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center text-white">
+        <div className="fixed inset-0 z-[99999] bg-slate-950/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-center text-white">
           <div className="w-20 h-20 bg-amber-500/20 rounded-full flex items-center justify-center border border-amber-500/30 mb-6 animate-pulse">
             <Wrench className="w-10 h-10 text-amber-400" />
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold mb-2 text-white">System Maintenance Underway</h2>
-          <p className="max-w-md text-sm text-slate-300 mb-6 leading-relaxed">
-            The Admin is currently performing system maintenance and data synchronization. Logbook entry functions are temporarily paused for non-admin users to prevent date/record conflicts. Please stand by!
+          <p className="max-w-md text-sm sm:text-base text-slate-300 mb-6 leading-relaxed">
+            The Admin is currently performing system maintenance and data synchronization. Logbook entry functions are temporarily locked for non-admin users to prevent record conflicts. Please stand by!
           </p>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-amber-400 bg-amber-950/60 border border-amber-800/80 px-4 py-2 rounded-xl">
+          <div className="flex items-center gap-2 text-xs sm:text-sm font-mono font-bold text-amber-400 bg-amber-950/80 border border-amber-800/80 px-5 py-2.5 rounded-2xl shadow-xl">
             <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
-            <span>Auto-refreshing & checking cloud status...</span>
+            <span>Auto-syncing & checking cloud status...</span>
           </div>
         </div>
       )}
