@@ -7,7 +7,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { REF_MEMBERSHIPS, REF_ICD_MAP } from '@/lib/refData';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { 
-  Users, Calendar, Plus, Trash2, Sparkles, FolderOpen, RefreshCw, Search, Printer, BarChart3, Database, X, CheckCircle, Pencil, Cloud, HardDrive, FileText
+  Users, Calendar, Plus, Trash2, Sparkles, FolderOpen, RefreshCw, Search, Printer, BarChart3, Database, X, CheckCircle, Pencil, Cloud, HardDrive, FileText, Clock
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -21,6 +21,7 @@ interface RecordItem {
   hci?: number | null;
   pf?: number | null;
   encoderName?: string;
+  entryTime?: string;
 }
 
 const deduplicateRecords = (items: RecordItem[]): RecordItem[] => {
@@ -59,6 +60,7 @@ export default function Dashboard() {
   const [icd, setIcd] = useState('');
   const [hci, setHci] = useState('');
   const [pf, setPf] = useState('');
+  const [entryTime, setEntryTime] = useState('');
 
   const [selectedIsoDate, setSelectedIsoDate] = useState(() => new Date().toISOString().split('T')[0]);
 
@@ -176,7 +178,8 @@ export default function Dashboard() {
             amount: d.amount,
             hci: d.hci_amount,
             pf: d.pf_amount,
-            encoderName: d.encoder_name
+            encoderName: d.encoder_name,
+            entryTime: d.entry_time || (d.created_at ? new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : undefined)
           }));
           const cleanCloud = deduplicateRecords(cloudRecords);
           setRecords(cleanCloud);
@@ -208,6 +211,7 @@ export default function Dashboard() {
     setIcd(rec.icd || '');
     setHci(rec.hci !== undefined && rec.hci !== null ? String(rec.hci) : '');
     setPf(rec.pf !== undefined && rec.pf !== null ? String(rec.pf) : '');
+    setEntryTime(rec.entryTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
     setDupError('');
     setShowAddModal(true);
   };
@@ -218,6 +222,7 @@ export default function Dashboard() {
     setIcd('');
     setHci('');
     setPf('');
+    setEntryTime('');
     setDupError('');
     setShowAddModal(false);
   };
@@ -231,6 +236,7 @@ export default function Dashboard() {
     const cleanCategory = category.trim().toUpperCase();
     const cleanIcd = icd.trim().toUpperCase();
     const autoAmount = REF_ICD_MAP[cleanIcd] !== undefined ? REF_ICD_MAP[cleanIcd] : null;
+    const finalTime = entryTime.trim() || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
     if (editingId) {
       // Edit / Update existing record mode
@@ -245,7 +251,8 @@ export default function Dashboard() {
             amount: autoAmount,
             hci: hci !== '' ? parseFloat(hci) : null,
             pf: pf !== '' ? parseFloat(pf) : null,
-            encoderName: r.encoderName || encoder || 'System'
+            encoderName: r.encoderName || encoder || 'System',
+            entryTime: finalTime
           };
         }
         return r;
@@ -262,7 +269,8 @@ export default function Dashboard() {
             phic_cat: phicCat.trim().toUpperCase(),
             icd_code: cleanIcd,
             hci_amount: hci !== '' ? parseFloat(hci) : null,
-            pf_amount: pf !== '' ? parseFloat(pf) : null
+            pf_amount: pf !== '' ? parseFloat(pf) : null,
+            entry_time: finalTime
           }).eq('id', editingId);
         } catch (e) {}
       }
@@ -291,7 +299,8 @@ export default function Dashboard() {
       amount: autoAmount,
       hci: hci !== '' ? parseFloat(hci) : null,
       pf: pf !== '' ? parseFloat(pf) : null,
-      encoderName: encoder || 'System'
+      encoderName: encoder || 'System',
+      entryTime: finalTime
     };
 
     const updated = deduplicateRecords([...records, newRec]);
@@ -308,7 +317,8 @@ export default function Dashboard() {
           amount: newRec.amount,
           hci_amount: newRec.hci,
           pf_amount: newRec.pf,
-          encoder_name: newRec.encoderName
+          encoder_name: newRec.encoderName,
+          entry_time: newRec.entryTime
         });
       } catch (e) {}
     }
@@ -592,6 +602,7 @@ export default function Dashboard() {
       (r.icd && r.icd.toLowerCase().includes(q)) ||
       (r.phicCat && r.phicCat.toLowerCase().includes(q)) ||
       (r.encoderName && r.encoderName.toLowerCase().includes(q)) ||
+      (r.entryTime && r.entryTime.toLowerCase().includes(q)) ||
       (r.category && r.category.toLowerCase().includes(q));
     return matchesCategory && matchesSearch;
   });
@@ -903,6 +914,32 @@ export default function Dashboard() {
                   </div>
                 </div>
 
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Entry Time
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEntryTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }))}
+                      className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline font-bold flex items-center gap-1"
+                    >
+                      <Clock className="w-3 h-3" />
+                      <span>Use Current Time</span>
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Clock className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+                    <input
+                      type="text"
+                      value={entryTime}
+                      onChange={(e) => setEntryTime(e.target.value)}
+                      placeholder="e.g. 08:15 AM"
+                      className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-3 pt-2">
                   <button
                     type="button"
@@ -995,6 +1032,7 @@ export default function Dashboard() {
                   <thead className="bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 uppercase font-bold sticky top-0 border-b border-slate-200 dark:border-slate-700">
                     <tr>
                       <th className="p-3 md:p-3.5">#</th>
+                      <th className="p-3 md:p-3.5">Time</th>
                       <th className="p-3 md:p-3.5">Category</th>
                       <th className="p-3 md:p-3.5">Patient Name</th>
                       <th className="p-3 md:p-3.5">Cat</th>
@@ -1006,7 +1044,7 @@ export default function Dashboard() {
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium text-slate-700 dark:text-slate-200">
                     {filteredRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="p-8 text-center text-slate-400 italic">
+                        <td colSpan={8} className="p-8 text-center text-slate-400 italic">
                           No logbook entries found for category: {activeFilter}
                         </td>
                       </tr>
@@ -1019,6 +1057,12 @@ export default function Dashboard() {
                         return (
                           <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
                             <td className="p-3 md:p-3.5 font-mono text-slate-400">{idx + 1}</td>
+                            <td className="p-3 md:p-3.5 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700 font-bold">
+                                <Clock className="w-3 h-3 text-emerald-500" />
+                                <span>{r.entryTime || '08:00 AM'}</span>
+                              </span>
+                            </td>
                             <td className="p-3 md:p-3.5 font-bold text-emerald-600 dark:text-emerald-400">{r.category}</td>
                             <td className="p-3 md:p-3.5 font-semibold text-slate-900 dark:text-white">{r.patientName}</td>
                             <td className="p-3 md:p-3.5 font-mono text-amber-600 dark:text-amber-400">{r.phicCat}</td>
@@ -1139,6 +1183,7 @@ export default function Dashboard() {
             <thead>
               <tr className="bg-slate-100 font-bold">
                 <th className="p-2 border">#</th>
+                <th className="p-2 border">Time</th>
                 <th className="p-2 border">Category</th>
                 <th className="p-2 border">Patient Name</th>
                 <th className="p-2 border">PHIC Cat</th>
@@ -1150,6 +1195,7 @@ export default function Dashboard() {
               {records.map((r, idx) => (
                 <tr key={r.id}>
                   <td className="p-2 border text-center font-mono">{idx + 1}</td>
+                  <td className="p-2 border text-center font-mono font-bold text-[10px]">{r.entryTime || '-'}</td>
                   <td className="p-2 border font-bold">{r.category}</td>
                   <td className="p-2 border font-semibold">{r.patientName}</td>
                   <td className="p-2 border text-center font-mono">{r.phicCat}</td>
