@@ -160,20 +160,44 @@ export default function Dashboard() {
     setPastDates(Array.from(datesSet));
   };
 
+  const saveRecordsToLocalAndBackup = (dateKey: string, recs: RecordItem[]) => {
+    try {
+      const clean = deduplicateRecords(recs);
+      localStorage.setItem(`philhealth_recs_${dateKey}`, JSON.stringify(clean));
+      
+      // Save to master backup map so entries are NEVER lost
+      const masterStr = localStorage.getItem('philhealth_master_backup') || '{}';
+      const masterMap = JSON.parse(masterStr);
+      masterMap[dateKey] = deduplicateRecords([...(masterMap[dateKey] || []), ...clean]);
+      localStorage.setItem('philhealth_master_backup', JSON.stringify(masterMap));
+    } catch (e) {}
+  };
+
   const loadSavedRecords = async (dateKey: string) => {
-    // 1. Instant local-first rendering (0ms delay) with deduplication
+    // 1. Instant local-first rendering with master backup recovery
+    let localRecords: RecordItem[] = [];
     const localData = localStorage.getItem(`philhealth_recs_${dateKey}`);
     if (localData) {
       try {
-        const parsed = JSON.parse(localData);
-        setRecords(deduplicateRecords(parsed));
-      } catch (e) {
-        setRecords([]);
-      }
-    } else {
-      setRecords([]);
+        localRecords = JSON.parse(localData);
+      } catch (e) {}
     }
 
+    // Check master backup if localRecords is empty
+    if (localRecords.length === 0) {
+      try {
+        const masterStr = localStorage.getItem('philhealth_master_backup') || '{}';
+        const masterMap = JSON.parse(masterStr);
+        if (masterMap[dateKey] && Array.isArray(masterMap[dateKey]) && masterMap[dateKey].length > 0) {
+          localRecords = masterMap[dateKey];
+          localStorage.setItem(`philhealth_recs_${dateKey}`, JSON.stringify(localRecords));
+        }
+      } catch (e) {}
+    }
+
+    setRecords(deduplicateRecords(localRecords));
+
+    // 2. Query Supabase (Cloud Sync)
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase
@@ -195,9 +219,11 @@ export default function Dashboard() {
             encoderName: d.encoder_name,
             entryTime: d.entry_time || (d.created_at ? new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : undefined)
           }));
-          const cleanCloud = deduplicateRecords(cloudRecords);
-          setRecords(cleanCloud);
-          localStorage.setItem(`philhealth_recs_${dateKey}`, JSON.stringify(cleanCloud));
+
+          // SAFE MERGE: Combine local records and cloud records so local entries are NEVER erased
+          const merged = deduplicateRecords([...localRecords, ...cloudRecords]);
+          setRecords(merged);
+          saveRecordsToLocalAndBackup(dateKey, merged);
         }
       } catch (e) {}
     }
@@ -273,19 +299,22 @@ export default function Dashboard() {
       });
 
       setRecords(updatedRecords);
-      localStorage.setItem(`philhealth_recs_${currentDate}`, JSON.stringify(updatedRecords));
+      saveRecordsToLocalAndBackup(currentDate, updatedRecords);
 
       if (isSupabaseConfigured()) {
         try {
-          await supabase.from('records').update({
+          const updatePayload: any = {
             category: cleanCategory,
             patient_name: cleanPatient,
             phic_cat: phicCat.trim().toUpperCase(),
             icd_code: cleanIcd,
             hci_amount: hci !== '' ? parseFloat(hci) : null,
-            pf_amount: pf !== '' ? parseFloat(pf) : null,
-            entry_time: finalTime
-          }).eq('id', editingId);
+            pf_amount: pf !== '' ? parseFloat(pf) : null
+          };
+          const { error } = await supabase.from('records').update({ ...updatePayload, entry_time: finalTime }).eq('id', editingId);
+          if (error) {
+            await supabase.from('records').update(updatePayload).eq('id', editingId);
+          }
         } catch (e) {}
       }
 
@@ -319,10 +348,11 @@ export default function Dashboard() {
 
     const updated = deduplicateRecords([...records, newRec]);
     setRecords(updated);
+    saveRecordsToLocalAndBackup(currentDate, updated);
 
     if (isSupabaseConfigured()) {
       try {
-        await supabase.from('records').insert({
+        const payload: any = {
           date_key: currentDate,
           category: newRec.category,
           patient_name: newRec.patientName,
@@ -331,13 +361,16 @@ export default function Dashboard() {
           amount: newRec.amount,
           hci_amount: newRec.hci,
           pf_amount: newRec.pf,
-          encoder_name: newRec.encoderName,
-          entry_time: newRec.entryTime
-        });
+          encoder_name: newRec.encoderName
+        };
+        const { error } = await supabase.from('records').insert({ ...payload, entry_time: newRec.entryTime });
+        if (error) {
+          // Fallback if entry_time column does not exist in Supabase schema
+          await supabase.from('records').insert(payload);
+        }
       } catch (e) {}
     }
 
-    localStorage.setItem(`philhealth_recs_${currentDate}`, JSON.stringify(updated));
     fetchPastWorksheets();
 
     setPatientName('');
@@ -360,16 +393,50 @@ export default function Dashboard() {
     if (isSupabaseConfigured()) {
       try {
         // 1. Delete by ID in Supabase
-        await supabase.from('records').delete().eq('id', id);
-
-        // 2. Dual-target delete by patient_name + category + date_key to guarantee cloud removal
-        if (recToDelete) {
+        const { error } = await supabase.from('records').delete().eq('id', id);
+        if (error && recToDelete) {
+          // Fallback: Delete by patient name and date_key if string ID mismatched
           await supabase.from('records').delete()
             .eq('date_key', currentDate)
-            .eq('patient_name', recToDelete.patientName)
-            .eq('category', recToDelete.category);
+            .eq('patient_name', recToDelete.patientName);
         }
       } catch (e) {}
+    }
+  };
+
+  // Emergency Data Recovery Helper
+  const handleRecoverData = () => {
+    try {
+      const masterStr = localStorage.getItem('philhealth_master_backup') || '{}';
+      const masterMap = JSON.parse(masterStr);
+      let combined: RecordItem[] = [...records];
+      
+      if (masterMap[currentDate] && Array.isArray(masterMap[currentDate])) {
+        combined = [...combined, ...masterMap[currentDate]];
+      }
+
+      // Scan all philhealth_recs_ keys in localStorage
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('philhealth_recs_')) {
+          try {
+            const items = JSON.parse(localStorage.getItem(key) || '[]');
+            if (Array.isArray(items)) {
+              items.forEach(it => {
+                if (it.patientName) combined.push(it);
+              });
+            }
+          } catch (e) {}
+        }
+      }
+
+      const dedupped = deduplicateRecords(combined);
+      setRecords(dedupped);
+      saveRecordsToLocalAndBackup(currentDate, dedupped);
+      fetchPastWorksheets();
+      alert(`✅ Data Recovery Scan Complete! Restored ${dedupped.length} total entries for ${currentDate}.`);
+    } catch (e) {
+      alert('⚠️ Recovery scan completed.');
     }
   };
 
@@ -775,6 +842,15 @@ export default function Dashboard() {
                 className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none"
               />
             </div>
+
+            <button
+              onClick={handleRecoverData}
+              className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-amber-700 dark:text-amber-300 rounded-xl text-xs font-bold transition border border-amber-200 dark:border-amber-800 flex items-center gap-1 shadow-2xs"
+              title="Scan and restore any local logbook entries for today"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-amber-500" />
+              <span>Recover Entries</span>
+            </button>
 
             <button
               onClick={fetchPastWorksheets}
