@@ -1240,20 +1240,121 @@ export default function Dashboard() {
   );
 }
 
-function AnalyticsModal({ isOpen, onClose, records, currentDate }: { isOpen: boolean; onClose: () => void; records: RecordItem[]; currentDate: string }) {
+function AnalyticsModal({ isOpen, onClose, records: initialDailyRecords, currentDate }: { isOpen: boolean; onClose: () => void; records: RecordItem[]; currentDate: string }) {
+  const [viewMode, setViewMode] = useState<'DAILY' | 'MONTHLY' | 'YEARLY'>('DAILY');
+  const [allStoreRecords, setAllStoreRecords] = useState<{ dateKey: string; records: RecordItem[] }[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const storeMap: Record<string, RecordItem[]> = {};
+
+    // 1. Gather from localStorage
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('philhealth_recs_')) {
+        const dateKey = key.replace('philhealth_recs_', '');
+        try {
+          const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+          if (Array.isArray(parsed)) {
+            storeMap[dateKey] = parsed;
+          }
+        } catch (e) {}
+      }
+    }
+
+    // Always ensure current worksheet is present
+    if (currentDate) {
+      storeMap[currentDate] = initialDailyRecords;
+    }
+
+    const compiled = Object.entries(storeMap).map(([dateKey, recs]) => ({ dateKey, records: recs }));
+    setAllStoreRecords(compiled);
+
+    // Parse default month and year from currentDate (e.g. "SEPTEMBER 15, 2026")
+    const parts = currentDate.split(' ');
+    if (parts.length >= 3) {
+      const yr = parts[parts.length - 1];
+      const mo = parts[0];
+      setSelectedMonth(`${mo} ${yr}`);
+      setSelectedYear(yr);
+    } else {
+      const yr = new Date().getFullYear().toString();
+      const mo = new Date().toLocaleDateString('en-US', { month: 'long' }).toUpperCase();
+      setSelectedMonth(`${mo} ${yr}`);
+      setSelectedYear(yr);
+    }
+  }, [isOpen, currentDate, initialDailyRecords]);
+
   if (!isOpen) return null;
 
+  // Available Months list
+  const availableMonths = (() => {
+    const set = new Set<string>();
+    allStoreRecords.forEach(item => {
+      const parts = item.dateKey.split(' ');
+      if (parts.length >= 3) {
+        set.add(`${parts[0]} ${parts[parts.length - 1]}`);
+      }
+    });
+    if (set.size === 0) {
+      const yr = new Date().getFullYear().toString();
+      const mo = new Date().toLocaleDateString('en-US', { month: 'long' }).toUpperCase();
+      set.add(`${mo} ${yr}`);
+    }
+    return Array.from(set);
+  })();
+
+  // Available Years list
+  const availableYears = (() => {
+    const set = new Set<string>();
+    allStoreRecords.forEach(item => {
+      const parts = item.dateKey.split(' ');
+      if (parts.length >= 1) {
+        const yr = parts[parts.length - 1];
+        if (/^\d{4}$/.test(yr)) set.add(yr);
+      }
+    });
+    if (set.size === 0) set.add(new Date().getFullYear().toString());
+    return Array.from(set);
+  })();
+
+  // Filter records based on view mode
+  let activeRecords: RecordItem[] = [];
+  let activeDaysCount = 1;
+
+  if (viewMode === 'DAILY') {
+    activeRecords = initialDailyRecords;
+    activeDaysCount = 1;
+  } else if (viewMode === 'MONTHLY') {
+    const [targetMo, targetYr] = (selectedMonth || '').split(' ');
+    const matching = allStoreRecords.filter(item => {
+      const dk = item.dateKey.toUpperCase();
+      const matchMo = targetMo ? dk.includes(targetMo) : true;
+      const matchYr = targetYr ? dk.includes(targetYr) : true;
+      return matchMo && matchYr;
+    });
+    activeDaysCount = matching.length || 1;
+    activeRecords = matching.flatMap(m => m.records);
+  } else if (viewMode === 'YEARLY') {
+    const matching = allStoreRecords.filter(item => item.dateKey.toUpperCase().includes(selectedYear));
+    activeDaysCount = matching.length || 1;
+    activeRecords = matching.flatMap(m => m.records);
+  }
+
   const categories = ['ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT'];
-  const total = records.length || 1;
+  const total = activeRecords.length || 1;
 
   const phicCounts: Record<string, number> = {};
-  records.forEach(r => {
+  activeRecords.forEach(r => {
     const c = r.phicCat || 'PR-M';
     phicCounts[c] = (phicCounts[c] || 0) + 1;
   });
 
   const icdCounts: Record<string, number> = {};
-  records.forEach(r => {
+  activeRecords.forEach(r => {
     if (r.icd) {
       icdCounts[r.icd] = (icdCounts[r.icd] || 0) + 1;
     }
@@ -1270,17 +1371,115 @@ function AnalyticsModal({ isOpen, onClose, records, currentDate }: { isOpen: boo
           <X className="w-5 h-5" />
         </button>
 
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 rounded-2xl">
-            <BarChart3 className="w-7 h-7" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 rounded-2xl">
+              <BarChart3 className="w-7 h-7" />
+            </div>
+            <div>
+              <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                Logbook Analytics & Claims Summary
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Period Overview • <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                  {viewMode === 'DAILY' ? currentDate : viewMode === 'MONTHLY' ? selectedMonth : `Year ${selectedYear}`}
+                </span>
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-              Logbook Analytics & Claims Summary
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Worksheet Date: <span className="font-bold text-emerald-600 dark:text-emerald-400">{currentDate}</span>
-            </p>
+
+          {/* Mode Switcher Tabs */}
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
+            <button
+              type="button"
+              onClick={() => setViewMode('DAILY')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                viewMode === 'DAILY'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Daily
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('MONTHLY')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                viewMode === 'MONTHLY'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('YEARLY')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                viewMode === 'YEARLY'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Yearly
+            </button>
+          </div>
+        </div>
+
+        {/* Period Filter Dropdown for Monthly / Yearly */}
+        {viewMode === 'MONTHLY' && (
+          <div className="flex items-center justify-between bg-purple-50 dark:bg-purple-950/40 p-3 rounded-2xl border border-purple-200 dark:border-purple-800/60">
+            <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+              Select Month Summary:
+            </span>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-xl px-3 py-1.5 text-xs font-extrabold text-slate-900 dark:text-white focus:outline-none"
+            >
+              {availableMonths.map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {viewMode === 'YEARLY' && (
+          <div className="flex items-center justify-between bg-purple-50 dark:bg-purple-950/40 p-3 rounded-2xl border border-purple-200 dark:border-purple-800/60">
+            <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+              Select Year Summary:
+            </span>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-xl px-3 py-1.5 text-xs font-extrabold text-slate-900 dark:text-white focus:outline-none"
+            >
+              {availableYears.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Summary Metric Cards Grid */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Patients</p>
+            <h4 className="text-xl md:text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-0.5">
+              {activeRecords.length}
+            </h4>
+          </div>
+          <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Worksheet Days</p>
+            <h4 className="text-xl md:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
+              {activeDaysCount} {activeDaysCount === 1 ? 'day' : 'days'}
+            </h4>
+          </div>
+          <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Avg Patients / Day</p>
+            <h4 className="text-xl md:text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">
+              {Math.round(activeRecords.length / Math.max(activeDaysCount, 1))}
+            </h4>
           </div>
         </div>
 
@@ -1291,7 +1490,7 @@ function AnalyticsModal({ isOpen, onClose, records, currentDate }: { isOpen: boo
           </h4>
           <div className="space-y-2">
             {categories.map(cat => {
-              const count = records.filter(r => r.category === cat).length;
+              const count = activeRecords.filter(r => r.category === cat).length;
               const pct = Math.round((count / total) * 100);
               return (
                 <div key={cat} className="space-y-1">
@@ -1319,12 +1518,16 @@ function AnalyticsModal({ isOpen, onClose, records, currentDate }: { isOpen: boo
               PHIC Membership Breakdown
             </h4>
             <div className="space-y-1.5 max-h-40 overflow-y-auto">
-              {Object.entries(phicCounts).map(([cat, count]) => (
-                <div key={cat} className="flex justify-between text-xs font-semibold">
-                  <span className="font-mono text-amber-600 dark:text-amber-400">{cat}</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{count} patients</span>
-                </div>
-              ))}
+              {Object.keys(phicCounts).length === 0 ? (
+                <p className="text-xs text-slate-400 italic">No PHIC entries found.</p>
+              ) : (
+                Object.entries(phicCounts).map(([cat, count]) => (
+                  <div key={cat} className="flex justify-between text-xs font-semibold">
+                    <span className="font-mono text-amber-600 dark:text-amber-400">{cat}</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{count} patients</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
