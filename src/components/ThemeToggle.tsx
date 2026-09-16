@@ -26,7 +26,7 @@ export function ThemeToggle() {
   if (!mounted) return <div className="w-24 h-9 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse"></div>;
 
   return (
-    <div className="relative flex items-center gap-1.5">
+    <div className="relative z-50 flex items-center gap-1.5">
       {/* Light / Dark / Auto Quick Switcher */}
       <div className="flex items-center p-1 bg-slate-200/90 dark:bg-slate-800/90 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold shadow-inner">
         <button
@@ -84,7 +84,7 @@ export function ThemeToggle() {
 
       {/* Palette Popover Menu */}
       {menuOpen && (
-        <div className="absolute right-0 top-12 z-50 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-2xl space-y-2">
+        <div className="absolute right-0 top-12 z-[100] w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-2xl space-y-2">
           <div className="text-[11px] uppercase font-extrabold tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800 pb-1.5">
             Accent Theme Studio
           </div>
