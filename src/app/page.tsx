@@ -54,6 +54,13 @@ const getStandardDateKey = (d: Date = new Date()) => {
   return `${month} ${day}, ${year}`;
 };
 
+const getLocalIsoDate = (d: Date = new Date()) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function Dashboard() {
   const [currentDate, setCurrentDate] = useState('');
   const [pastDates, setPastDates] = useState<string[]>([]);
@@ -84,7 +91,7 @@ export default function Dashboard() {
   const [pf, setPf] = useState('');
   const [entryTime, setEntryTime] = useState('');
 
-  const [selectedIsoDate, setSelectedIsoDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedIsoDate, setSelectedIsoDate] = useState(() => getLocalIsoDate());
 
   const checkMaintenanceStatus = async () => {
     let active = localStorage.getItem('philhealth_maintenance_mode') === 'true';
@@ -937,7 +944,7 @@ export default function Dashboard() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `philhealth_logbook_backup_${new Date().toISOString().split('T')[0]}.json`);
+    link.setAttribute('download', `philhealth_logbook_backup_${getLocalIsoDate()}.json`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1070,7 +1077,7 @@ export default function Dashboard() {
               />
               <button
                 type="button"
-                onClick={() => handleDatePickerChange(new Date().toISOString().split('T')[0])}
+                onClick={() => handleDatePickerChange(getLocalIsoDate())}
                 className="px-2.5 py-1.5 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 rounded-xl text-xs font-bold transition whitespace-nowrap shadow-xs"
                 title="Jump to Today"
               >
