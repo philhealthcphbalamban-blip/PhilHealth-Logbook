@@ -128,6 +128,43 @@ export default function AdminPage() {
     setPassword('');
   };
 
+  const handleResetUserPassword = async (user: UserAccount) => {
+    const newPass = prompt(`Enter new password for ${user.name} (${user.email}):`, '123456');
+    if (!newPass || !newPass.trim()) return;
+
+    const cleanPass = newPass.trim();
+    const passMap = JSON.parse(localStorage.getItem('philhealth_user_passwords') || '{}');
+    passMap[user.name.toLowerCase()] = cleanPass;
+    passMap[user.email.toLowerCase()] = cleanPass;
+    localStorage.setItem('philhealth_user_passwords', JSON.stringify(passMap));
+
+    if (isSupabaseConfigured()) {
+      try {
+        const passStr = JSON.stringify(passMap);
+        const { data: sysPass } = await supabase.from('records')
+          .select('id')
+          .eq('date_key', '__SYSTEM_SETTING__')
+          .eq('category', 'USER_PASSWORDS')
+          .maybeSingle();
+
+        if (sysPass && sysPass.id) {
+          await supabase.from('records').update({ patient_name: passStr }).eq('id', sysPass.id);
+        } else {
+          await supabase.from('records').insert({
+            date_key: '__SYSTEM_SETTING__',
+            category: 'USER_PASSWORDS',
+            patient_name: passStr,
+            phic_cat: 'SYS',
+            icd_code: 'SYS',
+            encoder_name: 'Admin'
+          });
+        }
+      } catch (e) {}
+    }
+
+    alert(`✅ Password for ${user.name} updated to "${cleanPass}" successfully!`);
+  };
+
   const handleDeleteUser = (id: string) => {
     if (confirm('Are you sure you want to remove this user account?')) {
       const updated = users.filter(u => u.id !== id);
@@ -331,13 +368,24 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleDeleteUser(u.id)}
-                      className="p-2 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-xl transition"
-                      title="Delete user"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleResetUserPassword(u)}
+                        className="px-3 py-1.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 rounded-xl transition text-xs font-bold flex items-center gap-1.5"
+                        title="Reset password for this user"
+                      >
+                        <Key className="w-3.5 h-3.5" />
+                        <span>Reset Pass</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteUser(u.id)}
+                        className="p-2 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-xl transition"
+                        title="Delete user"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

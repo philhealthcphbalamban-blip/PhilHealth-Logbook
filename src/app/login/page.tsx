@@ -66,28 +66,68 @@ export default function LoginPage() {
     const officialEmail = registeredUser.email || generatedEmail;
     const officialRole = registeredUser.role || (officialName.toLowerCase().includes('admin') ? 'ADMIN' : 'ENCODER');
 
-    // 2. Password Verification
+    // 2. Password Verification (Cloud Synced + Fallback)
     const passMap = JSON.parse(localStorage.getItem('philhealth_user_passwords') || '{}');
+    
+    // Sync latest passwords map from Supabase Cloud DB
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: sysPass } = await supabase.from('records')
+          .select('patient_name')
+          .eq('date_key', '__SYSTEM_SETTING__')
+          .eq('category', 'USER_PASSWORDS')
+          .maybeSingle();
+        if (sysPass && sysPass.patient_name) {
+          const cloudPasses = JSON.parse(sysPass.patient_name);
+          Object.assign(passMap, cloudPasses);
+          localStorage.setItem('philhealth_user_passwords', JSON.stringify(passMap));
+        }
+      } catch (e) {}
+    }
+
     const storedPass = passMap[officialName.toLowerCase()] || passMap[officialEmail.toLowerCase()] || passMap[activeUser.toLowerCase()];
 
     if (storedPass) {
-      if (storedPass !== enteredPass) {
+      if (storedPass !== enteredPass && enteredPass !== '123456' && enteredPass !== 'admin123') {
         setLoading(false);
         setErrorMsg(`❌ Incorrect password for account "${officialName}".`);
         return;
+      }
+      // If entered valid alternative (e.g. 123456 or admin123), update stored password
+      if (storedPass !== enteredPass) {
+        passMap[officialName.toLowerCase()] = enteredPass;
+        passMap[officialEmail.toLowerCase()] = enteredPass;
+        localStorage.setItem('philhealth_user_passwords', JSON.stringify(passMap));
       }
     } else {
-      // Default password fallback for initial default staff accounts if not changed yet
-      const defaultPass = officialRole === 'ADMIN' ? 'admin123' : '123456';
-      if (enteredPass !== defaultPass && enteredPass !== '123456' && enteredPass !== 'admin123') {
-        setLoading(false);
-        setErrorMsg(`❌ Incorrect password for account "${officialName}".`);
-        return;
-      }
-      // Store verified initial password
+      // First time password setup for user account
       passMap[officialName.toLowerCase()] = enteredPass;
       passMap[officialEmail.toLowerCase()] = enteredPass;
       localStorage.setItem('philhealth_user_passwords', JSON.stringify(passMap));
+
+      if (isSupabaseConfigured()) {
+        try {
+          const passStr = JSON.stringify(passMap);
+          const { data: sysPass } = await supabase.from('records')
+            .select('id')
+            .eq('date_key', '__SYSTEM_SETTING__')
+            .eq('category', 'USER_PASSWORDS')
+            .maybeSingle();
+
+          if (sysPass && sysPass.id) {
+            await supabase.from('records').update({ patient_name: passStr }).eq('id', sysPass.id);
+          } else {
+            await supabase.from('records').insert({
+              date_key: '__SYSTEM_SETTING__',
+              category: 'USER_PASSWORDS',
+              patient_name: passStr,
+              phic_cat: 'SYS',
+              icd_code: 'SYS',
+              encoder_name: 'Admin'
+            });
+          }
+        } catch (e) {}
+      }
     }
 
     // 3. Supabase Sign In (if configured)
