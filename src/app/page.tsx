@@ -157,11 +157,11 @@ export default function Dashboard() {
     loadSavedRecords(currentDate);
     checkMaintenanceStatus();
 
-    // Auto-poll cloud every 3 seconds so Admin and Users are ALWAYS synchronized in real time
+    // Auto-poll cloud every 10 seconds as fallback heartbeat (Supabase Realtime handles instant <500ms updates)
     const pollInterval = setInterval(() => {
       loadSavedRecords(currentDate);
       checkMaintenanceStatus();
-    }, 3000);
+    }, 10000);
 
     // Supabase Realtime WebSocket Listener for instant sync (<500ms)
     let channel: any = null;
@@ -275,7 +275,11 @@ export default function Dashboard() {
 
     if (isSupabaseConfigured()) {
       try {
-        const { data } = await supabase.from('records').select('date_key');
+        const { data } = await supabase
+          .from('records')
+          .select('date_key')
+          .neq('date_key', '__SYSTEM_SETTING__')
+          .limit(500);
         if (data) {
           data.forEach(r => {
             if (r.date_key) datesSet.add(r.date_key.trim().toUpperCase());
@@ -407,6 +411,7 @@ export default function Dashboard() {
         const { data, error } = await supabase
           .from('records')
           .select('*')
+          .ilike('date_key', targetKey)
           .order('created_at', { ascending: true });
 
         if (!error && data) {
