@@ -388,13 +388,12 @@ export default function Dashboard() {
       } catch (e) {}
     }
 
-    // Always merge master backup records so no locally added entry is EVER lost
+    // Merge master backup records for targetKey ONLY
     try {
       const masterStr = localStorage.getItem('philhealth_master_backup') || '{}';
       const masterMap = JSON.parse(masterStr);
       if (masterMap[targetKey] && Array.isArray(masterMap[targetKey]) && masterMap[targetKey].length > 0) {
         localRecords = deduplicateRecords([...localRecords, ...masterMap[targetKey]]);
-        localStorage.setItem(`philhealth_recs_${dateKey}`, JSON.stringify(localRecords));
       }
     } catch (e) {}
 
@@ -453,9 +452,10 @@ export default function Dashboard() {
 
           const cleanCloud = deduplicateRecords(cloudRecords);
 
-          // Find local entries that are NOT in cloud yet and NOT deleted
+          // Find local entries that are strictly marked isUnpushed === true AND not in cloud yet
           const localUnsynced = localRecords.filter(loc => {
             if (!loc.patientName) return false;
+            if (loc.isUnpushed !== true) return false;
             const key = `${targetKey}||${loc.patientName.trim().toUpperCase()}||${loc.category.trim().toUpperCase()}`;
             if (deletedKeys.has(key)) return false;
             return !cleanCloud.some(c => 
@@ -465,12 +465,20 @@ export default function Dashboard() {
           });
 
           if (localUnsynced.length > 0) {
-            localUnsynced.forEach(loc => loc.isUnpushed = true);
             syncLocalToCloud(dateKey, localUnsynced, cleanCloud);
           }
 
           const finalRecords = deduplicateRecords([...cleanCloud, ...localUnsynced]);
           setRecords(finalRecords);
+
+          // Overwrite local cache & master backup for targetKey with clean synchronized records
+          localStorage.setItem(`philhealth_recs_${dateKey}`, JSON.stringify(finalRecords));
+          try {
+            const masterStr = localStorage.getItem('philhealth_master_backup') || '{}';
+            const masterMap = JSON.parse(masterStr);
+            masterMap[targetKey] = finalRecords;
+            localStorage.setItem('philhealth_master_backup', JSON.stringify(masterMap));
+          } catch (e) {}
 
           // Update local cache and master backup with synchronized cloud data (removes deleted entries)
           localStorage.setItem(`philhealth_recs_${dateKey}`, JSON.stringify(finalRecords));
@@ -692,35 +700,30 @@ export default function Dashboard() {
   // Emergency Data Recovery Helper
   const handleRecoverData = () => {
     try {
+      const targetKey = currentDate.trim().toUpperCase();
+      let combined: RecordItem[] = [];
+
+      // 1. Recover from localStorage cache for currentDate only
+      const localData = localStorage.getItem(`philhealth_recs_${currentDate}`);
+      if (localData) {
+        try {
+          const items = JSON.parse(localData);
+          if (Array.isArray(items)) combined.push(...items);
+        } catch (e) {}
+      }
+
+      // 2. Recover from master backup for currentDate targetKey only
       const masterStr = localStorage.getItem('philhealth_master_backup') || '{}';
       const masterMap = JSON.parse(masterStr);
-      let combined: RecordItem[] = [...records];
-      
-      if (masterMap[currentDate] && Array.isArray(masterMap[currentDate])) {
-        combined = [...combined, ...masterMap[currentDate]];
+      if (masterMap[targetKey] && Array.isArray(masterMap[targetKey])) {
+        combined.push(...masterMap[targetKey]);
       }
 
-      // Scan all philhealth_recs_ keys in localStorage
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('philhealth_recs_')) {
-          try {
-            const items = JSON.parse(localStorage.getItem(key) || '[]');
-            if (Array.isArray(items)) {
-              items.forEach(it => {
-                if (it.patientName) combined.push(it);
-              });
-            }
-          } catch (e) {}
-        }
-      }
-
-      const dedupped = deduplicateRecords(combined);
+      const dedupped = deduplicateRecords(combined.filter(it => it && it.patientName));
       setRecords(dedupped);
       saveRecordsToLocalAndBackup(currentDate, dedupped);
-      syncLocalToCloud(currentDate, dedupped, []);
-      fetchPastWorksheets();
-      alert(`✅ Data Recovery Scan Complete! Restored and synced ${dedupped.length} total entries for ${currentDate}.`);
+      loadSavedRecords(currentDate);
+      alert(`✅ Data Recovery Scan Complete! Restored ${dedupped.length} total entries for ${currentDate}.`);
     } catch (e) {
       alert('⚠️ Recovery scan completed.');
     }
