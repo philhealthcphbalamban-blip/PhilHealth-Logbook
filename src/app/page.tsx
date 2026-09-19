@@ -1147,8 +1147,8 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Native Date Picker Selector & Worksheet Selector */}
-            <div className="flex items-center gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 sm:border-l border-slate-200 dark:border-slate-800 sm:pl-3 flex-wrap">
+            {/* Native Date Picker Selector */}
+            <div className="flex items-center gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 sm:border-l border-slate-200 dark:border-slate-800 sm:pl-3">
               <Calendar className="w-4 h-4 text-emerald-500 hidden sm:block" />
               <input
                 type="date"
@@ -1164,19 +1164,6 @@ export default function Dashboard() {
               >
                 Today
               </button>
-
-              {pastDates.length > 0 && (
-                <select
-                  value={currentDate}
-                  onChange={(e) => handleDateSwitch(e.target.value)}
-                  className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold focus:outline-none cursor-pointer hover:border-emerald-500 transition"
-                  title="Switch to saved date worksheet"
-                >
-                  {pastDates.map(d => (
-                    <option key={d} value={d}>📋 {d}</option>
-                  ))}
-                </select>
-              )}
             </div>
           </div>
 
