@@ -517,6 +517,21 @@ export default function Dashboard() {
           }
 
           const finalRecords = deduplicateRecords([...cleanCloud, ...localUnsynced]);
+
+          // Auto-fallback to the most recent active date_key in Supabase if current date has 0 records
+          if (finalRecords.length === 0 && data.length > 0) {
+            const nonSys = data.filter((d: any) => d.date_key && d.date_key !== '__SYSTEM_SETTING__');
+            if (nonSys.length > 0) {
+              const lastRec = nonSys[nonSys.length - 1];
+              if (lastRec && lastRec.date_key && normalizeDateKey(lastRec.date_key) !== normTargetKey) {
+                const fallbackDate = lastRec.date_key.trim().toUpperCase();
+                setCurrentDate(fallbackDate);
+                loadSavedRecords(fallbackDate);
+                return;
+              }
+            }
+          }
+
           setRecords(finalRecords);
 
           // Overwrite local cache & master backup for targetKey with clean synchronized records
