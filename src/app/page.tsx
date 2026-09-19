@@ -334,7 +334,10 @@ export default function Dashboard() {
       }
     }
 
-    const arr = Array.from(datesSet);
+    const todayStr = getStandardDateKey(new Date());
+    datesSet.add(todayStr);
+
+    const arr = Array.from(datesSet).reverse();
     setPastDates(arr);
 
     if (checkEmptyForDate && arr.length > 0) {
