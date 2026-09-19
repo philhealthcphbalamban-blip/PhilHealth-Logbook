@@ -461,10 +461,11 @@ export default function Dashboard() {
     // 2. Query Supabase (Cloud Multi-User Real-time Sync)
     if (isSupabaseConfigured()) {
       try {
+        const datePattern = targetKey.split(',')[0].trim();
         const { data, error } = await supabase
           .from('records')
           .select('*')
-          .neq('date_key', '__SYSTEM_SETTING__')
+          .ilike('date_key', `%${datePattern}%`)
           .order('created_at', { ascending: true });
 
         if (!error && data) {
