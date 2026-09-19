@@ -307,8 +307,8 @@ export default function Dashboard() {
     }
   };
 
-  // Fetch past worksheet dates from Supabase / LocalStorage
-  const fetchPastWorksheets = async () => {
+  // Fetch past worksheet dates from Supabase / LocalStorage & auto-fallback to latest active worksheet if empty
+  const fetchPastWorksheets = async (checkEmptyForDate?: string) => {
     let datesSet = new Set<string>();
 
     if (isSupabaseConfigured()) {
@@ -334,14 +334,16 @@ export default function Dashboard() {
       }
     }
 
-    // Always include sample date sheets if empty
-    if (datesSet.size === 0) {
-      datesSet.add('SEPTEMBER 11, 2026');
-      datesSet.add('AUGUST 15, 2026');
-      datesSet.add('01012025');
-    }
+    const arr = Array.from(datesSet);
+    setPastDates(arr);
 
-    setPastDates(Array.from(datesSet));
+    if (checkEmptyForDate && arr.length > 0) {
+      const activeLatest = arr[arr.length - 1];
+      if (activeLatest && activeLatest !== checkEmptyForDate) {
+        setCurrentDate(activeLatest);
+        loadSavedRecords(activeLatest);
+      }
+    }
   };
 
   const saveRecordsToLocalAndBackup = (dateKey: string, recs: RecordItem[]) => {
@@ -1237,7 +1239,7 @@ export default function Dashboard() {
             </button>
 
             <button
-              onClick={fetchPastWorksheets}
+              onClick={() => fetchPastWorksheets()}
               className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition"
               title="Refresh Dates"
             >
