@@ -726,12 +726,13 @@ export default function Dashboard() {
       'DENTAL': 15,
       'OECB': 20,
       'ANIMAL BITE': 25,
-      'PAIN MANAGEMENT': 30
+      'PAIN MANAGEMENT': 30,
+      'HEMODIALYSIS': 35
     };
 
     const wb = XLSX.utils.book_new();
     const grid: any[][] = [];
-    for (let r = 0; r < 100; r++) grid.push(new Array(36).fill(null));
+    for (let r = 0; r < 100; r++) grid.push(new Array(41).fill(null));
 
     grid[0][2] = 'Employee:';
     grid[0][3] = encoder;
@@ -744,6 +745,7 @@ export default function Dashboard() {
     grid[1][20] = 'OECB';
     grid[1][25] = 'ANIMAL BITE';
     grid[1][30] = 'PAIN MANAGEMENT';
+    grid[1][35] = 'HEMODIALYSIS';
 
     grid[2][0] = '#'; grid[2][1] = 'Patient Name'; grid[2][2] = 'Cat'; grid[2][3] = 'ICD/RVS'; grid[2][4] = 'Encoder';
     grid[2][5] = '#'; grid[2][6] = 'Patient Name'; grid[2][7] = 'Cat'; grid[2][8] = 'ICD/RVS'; grid[2][9] = 'Encoder';
@@ -752,6 +754,7 @@ export default function Dashboard() {
     grid[2][20] = '#'; grid[2][21] = 'Patient Name'; grid[2][22] = 'Cat'; grid[2][23] = 'ICD/RVS'; grid[2][24] = 'Encoder';
     grid[2][25] = '#'; grid[2][26] = 'Patient Name'; grid[2][27] = 'Cat'; grid[2][28] = 'ICD/RVS'; grid[2][29] = 'Encoder';
     grid[2][30] = '#'; grid[2][31] = 'Patient Name'; grid[2][32] = 'Cat'; grid[2][33] = 'ICD/RVS'; grid[2][34] = 'Encoder';
+    grid[2][35] = '#'; grid[2][36] = 'Patient Name'; grid[2][37] = 'Cat'; grid[2][38] = 'ICD/RVS'; grid[2][39] = 'Encoder';
 
     const counters: Record<string, number> = {};
     Object.keys(catMap).forEach(c => counters[c] = 0);
@@ -1253,6 +1256,7 @@ export default function Dashboard() {
                     <option value="OECB">OECB</option>
                     <option value="ANIMAL BITE">ANIMAL BITE</option>
                     <option value="PAIN MANAGEMENT">PAIN MANAGEMENT</option>
+                    <option value="HEMODIALYSIS">HEMODIALYSIS</option>
                   </select>
                 </div>
 
@@ -1392,7 +1396,7 @@ export default function Dashboard() {
 
               {/* Filter Tabs */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
-                {['ALL', 'ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT'].map((cat) => (
+                {['ALL', 'ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT', 'HEMODIALYSIS'].map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setActiveFilter(cat)}
@@ -1567,14 +1571,14 @@ export default function Dashboard() {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-slate-100">
-                {['ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT'].map(cat => (
+                {['ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT', 'HEMODIALYSIS'].map(cat => (
                   <th key={cat} className="p-2 border border-slate-400 text-center font-bold text-[10px]">{cat}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               <tr>
-                {['ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT'].map(cat => (
+                {['ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT', 'HEMODIALYSIS'].map(cat => (
                   <td key={cat} className="p-2 border border-slate-400 text-center font-bold text-sm">
                     {records.filter(r => r.category === cat).length}
                   </td>
@@ -1757,7 +1761,7 @@ function AnalyticsModal({ isOpen, onClose, records: initialDailyRecords, current
     activeRecords = matching.flatMap(m => m.records);
   }
 
-  const categories = ['ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT'];
+  const categories = ['ADMISSION', 'MINOR (ER)', 'MINOR (OPD)', 'DENTAL', 'OECB', 'ANIMAL BITE', 'PAIN MANAGEMENT', 'HEMODIALYSIS'];
   const total = activeRecords.length || 1;
 
   const phicCounts: Record<string, number> = {};
