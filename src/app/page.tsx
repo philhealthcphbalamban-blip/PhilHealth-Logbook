@@ -415,7 +415,7 @@ export default function Dashboard() {
         const { data, error } = await supabase
           .from('records')
           .select('*')
-          .ilike('date_key', targetKey)
+          .neq('date_key', '__SYSTEM_SETTING__')
           .order('created_at', { ascending: true });
 
         if (!error && data) {
@@ -452,10 +452,9 @@ export default function Dashboard() {
 
           const cleanCloud = deduplicateRecords(cloudRecords);
 
-          // Find local entries that are strictly marked isUnpushed === true AND not in cloud yet
+          // Find local entries that are NOT in cloud yet and NOT deleted
           const localUnsynced = localRecords.filter(loc => {
             if (!loc.patientName) return false;
-            if (loc.isUnpushed !== true) return false;
             const key = `${targetKey}||${loc.patientName.trim().toUpperCase()}||${loc.category.trim().toUpperCase()}`;
             if (deletedKeys.has(key)) return false;
             return !cleanCloud.some(c => 
@@ -465,6 +464,7 @@ export default function Dashboard() {
           });
 
           if (localUnsynced.length > 0) {
+            localUnsynced.forEach(loc => loc.isUnpushed = true);
             syncLocalToCloud(dateKey, localUnsynced, cleanCloud);
           }
 
