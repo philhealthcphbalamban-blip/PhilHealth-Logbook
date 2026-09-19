@@ -388,17 +388,15 @@ export default function Dashboard() {
       } catch (e) {}
     }
 
-    // Check master backup if localRecords is empty
-    if (localRecords.length === 0) {
-      try {
-        const masterStr = localStorage.getItem('philhealth_master_backup') || '{}';
-        const masterMap = JSON.parse(masterStr);
-        if (masterMap[targetKey] && Array.isArray(masterMap[targetKey]) && masterMap[targetKey].length > 0) {
-          localRecords = masterMap[targetKey];
-          localStorage.setItem(`philhealth_recs_${dateKey}`, JSON.stringify(localRecords));
-        }
-      } catch (e) {}
-    }
+    // Always merge master backup records so no locally added entry is EVER lost
+    try {
+      const masterStr = localStorage.getItem('philhealth_master_backup') || '{}';
+      const masterMap = JSON.parse(masterStr);
+      if (masterMap[targetKey] && Array.isArray(masterMap[targetKey]) && masterMap[targetKey].length > 0) {
+        localRecords = deduplicateRecords([...localRecords, ...masterMap[targetKey]]);
+        localStorage.setItem(`philhealth_recs_${dateKey}`, JSON.stringify(localRecords));
+      }
+    } catch (e) {}
 
     // Filter out deleted keys from local view & sanitize encoder names
     localRecords = localRecords.map(r => ({
@@ -455,14 +453,23 @@ export default function Dashboard() {
 
           const cleanCloud = deduplicateRecords(cloudRecords);
 
-          // Find strictly unpushed local entries
-          const unpushed = localRecords.filter(loc => loc.isUnpushed === true);
+          // Find local entries that are NOT in cloud yet and NOT deleted
+          const localUnsynced = localRecords.filter(loc => {
+            if (!loc.patientName) return false;
+            const key = `${targetKey}||${loc.patientName.trim().toUpperCase()}||${loc.category.trim().toUpperCase()}`;
+            if (deletedKeys.has(key)) return false;
+            return !cleanCloud.some(c => 
+              c.patientName.trim().toUpperCase() === loc.patientName.trim().toUpperCase() && 
+              c.category.trim().toUpperCase() === loc.category.trim().toUpperCase()
+            );
+          });
 
-          if (unpushed.length > 0) {
-            syncLocalToCloud(dateKey, localRecords, cleanCloud);
+          if (localUnsynced.length > 0) {
+            localUnsynced.forEach(loc => loc.isUnpushed = true);
+            syncLocalToCloud(dateKey, localUnsynced, cleanCloud);
           }
 
-          const finalRecords = deduplicateRecords([...cleanCloud, ...unpushed]);
+          const finalRecords = deduplicateRecords([...cleanCloud, ...localUnsynced]);
           setRecords(finalRecords);
 
           // Update local cache and master backup with synchronized cloud data (removes deleted entries)
@@ -592,7 +599,8 @@ export default function Dashboard() {
       hci: hci !== '' ? parseFloat(hci) : null,
       pf: pf !== '' ? parseFloat(pf) : null,
       encoderName: encoder || 'System',
-      entryTime: finalTime
+      entryTime: finalTime,
+      isUnpushed: true
     };
 
     const updated = deduplicateRecords([...records, newRec]);
