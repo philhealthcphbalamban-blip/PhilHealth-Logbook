@@ -61,6 +61,37 @@ const getLocalIsoDate = (d: Date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
+const normalizeDateKey = (rawKey?: string): string => {
+  if (!rawKey) return '';
+  let str = rawKey.trim().toUpperCase().replace(/,/g, '').replace(/\s+/g, ' ');
+  
+  if (str.includes('-')) {
+    const parts = str.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      const y = parts[0];
+      if (MONTH_NAMES[m]) str = `${MONTH_NAMES[m]} ${d} ${y}`;
+    }
+  } else if (str.includes('/')) {
+    const parts = str.split('/');
+    if (parts.length === 3) {
+      const m = parseInt(parts[0], 10) - 1;
+      const d = parseInt(parts[1], 10);
+      const y = parts[2];
+      if (MONTH_NAMES[m]) str = `${MONTH_NAMES[m]} ${d} ${y}`;
+    }
+  }
+
+  return str
+    .replace('SEPT ', 'SEPTEMBER ')
+    .replace('SEP ', 'SEPTEMBER ')
+    .replace('AUG ', 'AUGUST ')
+    .replace('JUL ', 'JULY ')
+    .replace(/,/g, '')
+    .replace(/\s+/g, ' ');
+};
+
 export default function Dashboard() {
   const [currentDate, setCurrentDate] = useState('');
   const [pastDates, setPastDates] = useState<string[]>([]);
@@ -379,22 +410,34 @@ export default function Dashboard() {
       deletedKeys = new Set(JSON.parse(localStorage.getItem('philhealth_deleted_keys') || '[]'));
     } catch (e) {}
 
-    // 1. Instant local-first rendering with master backup recovery
+    const normTargetKey = normalizeDateKey(dateKey);
+
+    // 1. Instant local-first rendering with normalized date matching
     let localRecords: RecordItem[] = [];
-    const localData = localStorage.getItem(`philhealth_recs_${dateKey}`);
-    if (localData) {
-      try {
-        localRecords = JSON.parse(localData);
-      } catch (e) {}
+    
+    // Scan all philhealth_recs_ keys in localStorage matching normTargetKey
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('philhealth_recs_')) {
+        const keyDate = key.replace('philhealth_recs_', '');
+        if (normalizeDateKey(keyDate) === normTargetKey) {
+          try {
+            const items = JSON.parse(localStorage.getItem(key) || '[]');
+            if (Array.isArray(items)) localRecords.push(...items);
+          } catch (e) {}
+        }
+      }
     }
 
-    // Merge master backup records for targetKey ONLY
+    // Merge master backup records matching normTargetKey
     try {
       const masterStr = localStorage.getItem('philhealth_master_backup') || '{}';
       const masterMap = JSON.parse(masterStr);
-      if (masterMap[targetKey] && Array.isArray(masterMap[targetKey]) && masterMap[targetKey].length > 0) {
-        localRecords = deduplicateRecords([...localRecords, ...masterMap[targetKey]]);
-      }
+      Object.keys(masterMap).forEach(mk => {
+        if (normalizeDateKey(mk) === normTargetKey && Array.isArray(masterMap[mk])) {
+          localRecords.push(...masterMap[mk]);
+        }
+      });
     } catch (e) {}
 
     // Filter out deleted keys from local view & sanitize encoder names
@@ -404,7 +447,8 @@ export default function Dashboard() {
     })).filter(r => {
       if (!r.patientName) return false;
       const key = `${targetKey}||${r.patientName.trim().toUpperCase()}||${r.category.trim().toUpperCase()}`;
-      return !deletedKeys.has(key);
+      const normKey = `${normTargetKey}||${r.patientName.trim().toUpperCase()}||${r.category.trim().toUpperCase()}`;
+      return !deletedKeys.has(key) && !deletedKeys.has(normKey);
     });
 
     setRecords(deduplicateRecords(localRecords));
@@ -424,11 +468,11 @@ export default function Dashboard() {
             supabase.from('records').update({ encoder_name: 'Miko' }).ilike('encoder_name', 'mikod').then(() => {});
           }
 
-          // Filter matching date_key case-insensitively across all computers & encoders, excluding system settings
+          // Filter matching date_key case-insensitively & via normalized date matching
           const matchingData = data.filter((d: any) => 
             d.date_key && 
-            d.date_key.trim().toUpperCase() === targetKey && 
-            d.date_key !== '__SYSTEM_SETTING__'
+            d.date_key !== '__SYSTEM_SETTING__' &&
+            (d.date_key.trim().toUpperCase() === targetKey || normalizeDateKey(d.date_key) === normTargetKey)
           );
 
           const cloudRecords: RecordItem[] = matchingData
@@ -447,7 +491,8 @@ export default function Dashboard() {
             .filter((r: RecordItem) => {
               if (!r.patientName) return false;
               const key = `${targetKey}||${r.patientName.trim().toUpperCase()}||${r.category.trim().toUpperCase()}`;
-              return !deletedKeys.has(key);
+              const normKey = `${normTargetKey}||${r.patientName.trim().toUpperCase()}||${r.category.trim().toUpperCase()}`;
+              return !deletedKeys.has(key) && !deletedKeys.has(normKey);
             });
 
           const cleanCloud = deduplicateRecords(cloudRecords);
@@ -456,7 +501,8 @@ export default function Dashboard() {
           const localUnsynced = localRecords.filter(loc => {
             if (!loc.patientName) return false;
             const key = `${targetKey}||${loc.patientName.trim().toUpperCase()}||${loc.category.trim().toUpperCase()}`;
-            if (deletedKeys.has(key)) return false;
+            const normKey = `${normTargetKey}||${loc.patientName.trim().toUpperCase()}||${loc.category.trim().toUpperCase()}`;
+            if (deletedKeys.has(key) || deletedKeys.has(normKey)) return false;
             return !cleanCloud.some(c => 
               c.patientName.trim().toUpperCase() === loc.patientName.trim().toUpperCase() && 
               c.category.trim().toUpperCase() === loc.category.trim().toUpperCase()
@@ -477,6 +523,7 @@ export default function Dashboard() {
             const masterStr = localStorage.getItem('philhealth_master_backup') || '{}';
             const masterMap = JSON.parse(masterStr);
             masterMap[targetKey] = finalRecords;
+            masterMap[normTargetKey] = finalRecords;
             localStorage.setItem('philhealth_master_backup', JSON.stringify(masterMap));
           } catch (e) {}
 
