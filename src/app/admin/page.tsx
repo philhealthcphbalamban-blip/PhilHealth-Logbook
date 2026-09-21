@@ -44,7 +44,32 @@ export default function AdminPage() {
     loadUsers();
   }, []);
 
-  const loadUsers = () => {
+  const syncAccountsToCloud = async (accountList: UserAccount[]) => {
+    if (!isSupabaseConfigured()) return;
+    try {
+      const accStr = JSON.stringify(accountList);
+      const { data: sysAcc } = await supabase.from('records')
+        .select('id')
+        .eq('date_key', '__SYSTEM_SETTING__')
+        .eq('category', 'USER_ACCOUNTS')
+        .maybeSingle();
+
+      if (sysAcc && sysAcc.id) {
+        await supabase.from('records').update({ patient_name: accStr }).eq('id', sysAcc.id);
+      } else {
+        await supabase.from('records').insert({
+          date_key: '__SYSTEM_SETTING__',
+          category: 'USER_ACCOUNTS',
+          patient_name: accStr,
+          phic_cat: 'SYS',
+          icd_code: 'SYS',
+          encoder_name: 'Admin'
+        });
+      }
+    } catch (e) {}
+  };
+
+  const loadUsers = async () => {
     let accounts: UserAccount[] = [];
     const localUsers = localStorage.getItem('philhealth_accounts');
     if (localUsers) {
@@ -53,10 +78,28 @@ export default function AdminPage() {
       } catch (e) {}
     }
 
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: sysAcc } = await supabase.from('records')
+          .select('patient_name')
+          .eq('date_key', '__SYSTEM_SETTING__')
+          .eq('category', 'USER_ACCOUNTS')
+          .maybeSingle();
+
+        if (sysAcc && sysAcc.patient_name) {
+          const cloudAccounts = JSON.parse(sysAcc.patient_name);
+          if (Array.isArray(cloudAccounts) && cloudAccounts.length > 0) {
+            accounts = cloudAccounts;
+          }
+        }
+      } catch (e) {}
+    }
+
     const defaults: UserAccount[] = [
       { id: '1', name: 'System Admin', email: 'admin@hospital.com', role: 'ADMIN', createdAt: new Date().toLocaleDateString() },
       { id: '2', name: 'Juvy', email: 'juvy@hospital.com', role: 'ENCODER', createdAt: new Date().toLocaleDateString() },
       { id: '3', name: 'Miko', email: 'miko@hospital.com', role: 'ENCODER', createdAt: new Date().toLocaleDateString() },
+      { id: '4', name: 'faith', email: 'faith@hospital.com', role: 'ENCODER', createdAt: new Date().toLocaleDateString() }
     ];
 
     const accountMap = new Map<string, UserAccount>();
@@ -68,7 +111,6 @@ export default function AdminPage() {
     accounts.forEach(a => {
       if (a && a.email && a.name) {
         const cleanName = a.name.trim().toLowerCase();
-        // Purge auto-created junk accounts from previous sessions
         if (cleanName !== 'nigel' && !cleanName.includes('nigel')) {
           accountMap.set(a.email.toLowerCase(), a);
         }
@@ -78,6 +120,7 @@ export default function AdminPage() {
     const merged = Array.from(accountMap.values());
     setUsers(merged);
     localStorage.setItem('philhealth_accounts', JSON.stringify(merged));
+    syncAccountsToCloud(merged);
   };
 
   const handleCreateAccount = async (e: React.FormEvent) => {
@@ -118,9 +161,34 @@ export default function AdminPage() {
     passMap[email.toLowerCase()] = password;
     localStorage.setItem('philhealth_user_passwords', JSON.stringify(passMap));
 
+    if (isSupabaseConfigured()) {
+      try {
+        const passStr = JSON.stringify(passMap);
+        const { data: sysPass } = await supabase.from('records')
+          .select('id')
+          .eq('date_key', '__SYSTEM_SETTING__')
+          .eq('category', 'USER_PASSWORDS')
+          .maybeSingle();
+
+        if (sysPass && sysPass.id) {
+          await supabase.from('records').update({ patient_name: passStr }).eq('id', sysPass.id);
+        } else {
+          await supabase.from('records').insert({
+            date_key: '__SYSTEM_SETTING__',
+            category: 'USER_PASSWORDS',
+            patient_name: passStr,
+            phic_cat: 'SYS',
+            icd_code: 'SYS',
+            encoder_name: 'Admin'
+          });
+        }
+      } catch (e) {}
+    }
+
     const updated = [...users, newUser];
     setUsers(updated);
     localStorage.setItem('philhealth_accounts', JSON.stringify(updated));
+    syncAccountsToCloud(updated);
 
     setMsg(`Account for ${name} (${email}) created successfully!`);
     setName('');
@@ -170,6 +238,7 @@ export default function AdminPage() {
       const updated = users.filter(u => u.id !== id);
       setUsers(updated);
       localStorage.setItem('philhealth_accounts', JSON.stringify(updated));
+      syncAccountsToCloud(updated);
     }
   };
 

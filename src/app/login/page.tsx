@@ -34,17 +34,36 @@ export default function LoginPage() {
       ? activeUser.toLowerCase()
       : activeUser.toLowerCase().replace(/[^a-z0-9]/g, '') + '@hospital.com';
 
-    // 1. Fetch Registered Accounts list
+    // 1. Fetch Registered Accounts list (Cloud Synced + Local Storage)
     const defaultAccounts = [
       { name: 'System Admin', email: 'admin@hospital.com', role: 'ADMIN' },
       { name: 'Juvy', email: 'juvy@hospital.com', role: 'ENCODER' },
-      { name: 'Miko', email: 'miko@hospital.com', role: 'ENCODER' }
+      { name: 'Miko', email: 'miko@hospital.com', role: 'ENCODER' },
+      { name: 'faith', email: 'faith@hospital.com', role: 'ENCODER' }
     ];
 
     let userAccounts: any[] = [];
     try {
       userAccounts = JSON.parse(localStorage.getItem('philhealth_accounts') || '[]');
     } catch (e) {}
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: sysAcc } = await supabase.from('records')
+          .select('patient_name')
+          .eq('date_key', '__SYSTEM_SETTING__')
+          .eq('category', 'USER_ACCOUNTS')
+          .maybeSingle();
+
+        if (sysAcc && sysAcc.patient_name) {
+          const cloudAccounts = JSON.parse(sysAcc.patient_name);
+          if (Array.isArray(cloudAccounts) && cloudAccounts.length > 0) {
+            userAccounts = cloudAccounts;
+            localStorage.setItem('philhealth_accounts', JSON.stringify(cloudAccounts));
+          }
+        }
+      } catch (e) {}
+    }
 
     const allRegistered = [...defaultAccounts, ...userAccounts];
 
