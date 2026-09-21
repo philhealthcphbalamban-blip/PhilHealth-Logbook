@@ -111,6 +111,8 @@ export default function Dashboard() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingOldName, setEditingOldName] = useState('');
+  const [editingOldCategory, setEditingOldCategory] = useState('');
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
 
   // Form State (Amount input removed as requested)
@@ -577,6 +579,8 @@ export default function Dashboard() {
     }
 
     setEditingId(rec.id);
+    setEditingOldName(rec.patientName.trim().toUpperCase());
+    setEditingOldCategory(rec.category.trim().toUpperCase());
     setCategory(rec.category);
     setPatientName(rec.patientName);
     setPhicCat(rec.phicCat);
@@ -590,6 +594,8 @@ export default function Dashboard() {
 
   const handleCancelEdit = () => {
     setEditingId(null);
+    setEditingOldName('');
+    setEditingOldCategory('');
     setPatientName('');
     setIcd('');
     setHci('');
@@ -624,7 +630,8 @@ export default function Dashboard() {
             hci: hci !== '' ? parseFloat(hci) : null,
             pf: pf !== '' ? parseFloat(pf) : null,
             encoderName: r.encoderName || encoder || 'System',
-            entryTime: finalTime
+            entryTime: finalTime,
+            isUnpushed: true
           };
         }
         return r;
@@ -643,6 +650,16 @@ export default function Dashboard() {
             hci_amount: hci !== '' ? parseFloat(hci) : null,
             pf_amount: pf !== '' ? parseFloat(pf) : null
           };
+
+          // If patient name or category changed, purge old record row from Supabase DB to prevent duplicate creation
+          if ((editingOldName && editingOldName !== cleanPatient) || (editingOldCategory && editingOldCategory !== cleanCategory)) {
+            await supabase.from('records')
+              .delete()
+              .eq('date_key', currentDate)
+              .ilike('patient_name', editingOldName)
+              .eq('category', editingOldCategory || cleanCategory);
+          }
+
           const { error } = await supabase.from('records').update({ ...updatePayload, entry_time: finalTime }).eq('id', editingId);
           if (error) {
             await supabase.from('records').update(updatePayload).eq('id', editingId);
