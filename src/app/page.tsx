@@ -654,22 +654,55 @@ export default function Dashboard() {
             patient_name: cleanPatient,
             phic_cat: phicCat.trim().toUpperCase(),
             icd_code: cleanIcd,
+            amount: autoAmount,
             hci_amount: hci !== '' ? parseFloat(hci) : null,
             pf_amount: pf !== '' ? parseFloat(pf) : null
           };
 
-          // If patient name or category changed, purge old record row from Supabase DB to prevent duplicate creation
-          if ((editingOldName && editingOldName !== cleanPatient) || (editingOldCategory && editingOldCategory !== cleanCategory)) {
-            await supabase.from('records')
-              .delete()
-              .eq('date_key', currentDate)
-              .ilike('patient_name', editingOldName)
-              .eq('category', editingOldCategory || cleanCategory);
+          // Try updating by ID first
+          let { error, data } = await supabase
+            .from('records')
+            .update({ ...updatePayload, entry_time: finalTime })
+            .eq('id', editingId)
+            .select();
+
+          if (error) {
+            const res = await supabase.from('records').update(updatePayload).eq('id', editingId).select();
+            error = res.error;
+            data = res.data;
           }
 
-          const { error } = await supabase.from('records').update({ ...updatePayload, entry_time: finalTime }).eq('id', editingId);
-          if (error) {
-            await supabase.from('records').update(updatePayload).eq('id', editingId);
+          // If ID update failed or modified 0 rows (e.g. record had local ID or was renamed)
+          if (error || !data || data.length === 0) {
+            if ((editingOldName && editingOldName !== cleanPatient) || (editingOldCategory && editingOldCategory !== cleanCategory)) {
+              await supabase.from('records')
+                .delete()
+                .eq('date_key', currentDate)
+                .ilike('patient_name', editingOldName)
+                .eq('category', editingOldCategory || cleanCategory);
+            }
+
+            const { data: inserted } = await supabase
+              .from('records')
+              .insert({
+                ...updatePayload,
+                date_key: currentDate,
+                encoder_name: encoder || 'System',
+                entry_time: finalTime
+              })
+              .select();
+
+            if (inserted && inserted.length > 0) {
+              const newId = inserted[0].id;
+              const remapped = updatedRecords.map(r => r.id === editingId ? { ...r, id: newId, isUnpushed: false } : r);
+              setRecords(remapped);
+              saveRecordsToLocalAndBackup(currentDate, remapped);
+            }
+          } else {
+            // Update succeeded! Mark isUnpushed: false
+            const remapped = updatedRecords.map(r => r.id === editingId ? { ...r, isUnpushed: false } : r);
+            setRecords(remapped);
+            saveRecordsToLocalAndBackup(currentDate, remapped);
           }
         } catch (e) {}
       }
