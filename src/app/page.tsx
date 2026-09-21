@@ -28,7 +28,9 @@ interface RecordItem {
 const deduplicateRecords = (items: RecordItem[]): RecordItem[] => {
   const seen = new Set<string>();
   return items.filter(item => {
-    const key = `${(item.patientName || '').trim().toUpperCase()}||${(item.category || '').trim().toUpperCase()}`;
+    const pName = (item.patientName || '').trim().replace(/\s+/g, ' ').toUpperCase();
+    const pCat = (item.category || '').trim().replace(/\s+/g, ' ').toUpperCase();
+    const key = `${pName}||${pCat}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -385,6 +387,7 @@ export default function Dashboard() {
     });
 
     if (unpushed.length > 0) {
+      let anySuccess = false;
       for (const item of unpushed) {
         const payload: any = {
           date_key: dateKey,
@@ -403,7 +406,11 @@ export default function Dashboard() {
             await supabase.from('records').insert(payload);
           }
           item.isUnpushed = false;
+          anySuccess = true;
         } catch (e) {}
+      }
+      if (anySuccess) {
+        saveRecordsToLocalAndBackup(dateKey, localRecs);
       }
     }
   };
